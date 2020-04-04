@@ -1,5 +1,6 @@
 # Prevent bot data from syncing
 data.json
+invite.txt
 
 
 # Byte-compiled / optimized / DLL files
