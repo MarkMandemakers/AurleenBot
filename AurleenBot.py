@@ -206,6 +206,22 @@ async def on_message(message):
         await message.channel.send("Shutting down...")
         print("Shutting down...")
     # end if
+
+    # help
+    if message.content.startswith('!help') or message.content.startswith('!AurleenBot') or \
+            message.content.startswith('!Aurleenbot') or message.content.startswith('!aurleenbot'):
+        embed = discord.Embed(title="AurleenBot Sample Commands", color=0x76883c)
+        embed.add_field(name="!r1d20", value="Roll a d20", inline=False)
+        embed.add_field(name="!r5d6", value="Roll five d6 and sum up", inline=False)
+        embed.add_field(name="!advantage (!adv) / !disadvantage (!dis)",
+                        value="Roll two d20 and keep the highest or lowest respectively", inline=False)
+        embed.add_field(name="!bless / !guidance", value="Roll a d20 and a d4", inline=False)
+        embed.add_field(name="All commands support a modifier, e.g. !r1d20+5",
+                        value="Add + or - your modifier to add it to the total of the roll", inline=False)
+        embed.set_footer(text="pls don't break me")
+        await message.channel.send(embed=embed)
+        print("Showed info")
+    # end if
 # end def
 
 client.run(CLIENT_ID)
