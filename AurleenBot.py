@@ -19,6 +19,8 @@ except Exception as e:
 
 # Roll dice
 def rolld(d):
+    global rolled
+    rolled += 1
     return random.randint(1, d)
 # end def
 
@@ -42,13 +44,15 @@ async def on_message(message):
     # end if
 
     # General rolling
-    if message.content.startswith("!r"):
+    if message.content.startswith("!r") or message.content.startswith("/r"):
         regex = re.findall(r'\d+', message.content)
         nums = list(map(int, regex))
 
         dice_count = nums[0]
         dice = nums[1]
 
+        # TODO
+        # Add desription to embed, e.g. "5d6 + 5"
         embed = discord.Embed(title="Rolling for " + str(message.author), color=0x76883c)
         total = 0
 
@@ -88,7 +92,7 @@ async def on_message(message):
     # end if
 
     # Advantage
-    if message.content.startswith("!adv"):
+    if message.content.startswith("!adv") or message.content.startswith("/adv"):
         regex = re.findall(r'\d+', message.content)
         nums = list(map(int, regex))
 
@@ -126,7 +130,7 @@ async def on_message(message):
     # end if
 
     # Disadvantage
-    if message.content.startswith("!dis"):
+    if message.content.startswith("!dis") or message.content.startswith("/dis"):
         regex = re.findall(r'\d+', message.content)
         nums = list(map(int, regex))
 
@@ -164,7 +168,8 @@ async def on_message(message):
     # end if
 
     # Bless/Guidance spell
-    if message.content.startswith('!bless') or message.content.startswith('!guidance'):
+    if message.content.startswith('!bless') or message.content.startswith('!guidance') or \
+            message.content.startswith("/bless") or message.content.startswith("/guidance"):
         d20 = rolld(20)
         d4 = rolld(4)
         splitcall = message.content.split("+")
@@ -192,10 +197,14 @@ async def on_message(message):
         await message.channel.send(embed=embed)
     # end if
 
+    await client.change_presence(activity=discord.Game(name='Rolled ' + str(rolled) + ' dice'))
+
     # Shutting down
-    if message.content.startswith('!quit') or message.content.startswith('!exit'):
+    if message.content.startswith('!quit') or message.content.startswith('!exit') or \
+            message.content.startswith("/quit") or message.content.startswith("/exit"):
         await client.change_presence(activity=discord.Game(name='OFFLINE'))
         await message.channel.send("Shutting down...")
+        print("Shutting down...")
     # end if
 # end def
 
