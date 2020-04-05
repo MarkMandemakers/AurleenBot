@@ -51,19 +51,26 @@ async def on_message(message):
         dice_count = nums[0]
         dice = nums[1]
 
-        # TODO
-        # Add desription to embed, e.g. "5d6 + 5"
-        embed = discord.Embed(title="Rolling for " + str(message.author), color=0x76883c)
+        # Limit dice count to 20
+        if dice_count > 20:
+            await message.channel.send("Please roll no more than 20 dice at once")
+            dice_count = 20
+        # end if
+        
         total = 0
+        desc = str(dice_count) + "d" + str(dice)
 
         if len(nums) > 2:
             if "-" in message.content:
                 bonus = -1 * nums[2]
+                desc += " - " + str(nums[2])
             else:
                 bonus = nums[2]
+                desc += " + " + str(nums[2])
         else:
             bonus = 0
         # end if/else
+        embed = discord.Embed(title="Rolling for " + str(message.author), description=desc, color=0x76883c)
 
         if dice_count == 1 and dice == 20:
             d20 = rolld(20)
