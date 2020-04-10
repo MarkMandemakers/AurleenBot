@@ -29,7 +29,8 @@ def rolld(d):
 @client.event
 async def on_ready():
     print('We have logged in as {0.user}'.format(client))
-    await client.change_presence(activity=discord.Game(name='Ready to roll!'))
+    # await client.change_presence(activity=discord.Game(name='Ready to roll!'))
+    await client.change_presence(activity=discord.Game(name='Don\'t mind me, just testing the bot!'))
 # end def
 
 
@@ -204,7 +205,7 @@ async def on_message(message):
         await message.channel.send(embed=embed)
     # end if
 
-    await client.change_presence(activity=discord.Game(name='Rolled ' + str(rolled) + ' dice'))
+    # await client.change_presence(activity=discord.Game(name='Rolled ' + str(rolled) + ' dice'))
 
     # Shutting down
     if message.content.startswith('!quit') or message.content.startswith('!exit') or \
