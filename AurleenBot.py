@@ -44,6 +44,11 @@ async def on_message(message):
         return
     # end if
 
+    # DEBUG
+    # if message.content.startswith("!debug"):
+        # await message.channel.send(message.author.name + message.author.display_name)
+    # end if
+
     # General rolling
     if message.content.startswith("!r") or message.content.startswith("/r"):
         regex = re.findall(r'\d+', message.content)
@@ -71,7 +76,7 @@ async def on_message(message):
         else:
             bonus = 0
         # end if/else
-        embed = discord.Embed(title="Rolling for " + str(message.author), description=desc, color=0x76883c)
+        embed = discord.Embed(title="Rolling for " + str(message.author.name), description=desc, color=0x76883c)
 
         if dice_count == 1 and dice == 20:
             d20 = rolld(20)
@@ -104,7 +109,7 @@ async def on_message(message):
         regex = re.findall(r'\d+', message.content)
         nums = list(map(int, regex))
 
-        embed = discord.Embed(title="Rolling with advantage for " + str(message.author), color=0x76883c)
+        embed = discord.Embed(title="Rolling with advantage for " + str(message.author.name), color=0x76883c)
         total = 0
 
         if len(nums) > 0:
@@ -142,7 +147,7 @@ async def on_message(message):
         regex = re.findall(r'\d+', message.content)
         nums = list(map(int, regex))
 
-        embed = discord.Embed(title="Rolling with disadvantage for " + str(message.author), color=0x76883c)
+        embed = discord.Embed(title="Rolling with disadvantage for " + str(message.author.name), color=0x76883c)
         total = 0
 
         if len(nums) > 0:
@@ -182,7 +187,7 @@ async def on_message(message):
         d4 = rolld(4)
         splitcall = message.content.split("+")
 
-        embed = discord.Embed(title="Rolling for " + str(message.author), color=0x76883c)
+        embed = discord.Embed(title="Rolling for " + str(message.author.name), color=0x76883c)
         embed.add_field(name="d20", value=d20, inline=True)
         embed.add_field(name="d4", value=d4, inline=True)
 
