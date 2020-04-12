@@ -68,8 +68,8 @@ def unify_dice(dtype, count):
 @client.event
 async def on_ready():
     print('Ready on Discord as {0.user}'.format(client))
-    # await client.change_presence(activity=discord.Game(name='Ready to roll!'))
-    await client.change_presence(activity=discord.Game(name='Don\'t mind me, just testing the bot!'))
+    await client.change_presence(activity=discord.Game(name='Ready to roll!'))
+    # await client.change_presence(activity=discord.Game(name='Don\'t mind me, just testing the bot!'))
 # end def
 
 
@@ -102,9 +102,9 @@ async def on_message(message):
     # Let an admin shut down the bot
     if msg.startswith(("!quit", "!stop", "!exit")) and str(message.author) in ADMINS:
         print("Shutting down...")
-        await client.change_presence(status=discord.Status.offline, afk=True, activity=discord.Game(name='OFFLINE'))
+        await client.change_presence(status=discord.Status.dnd, afk=True, activity=discord.Game(name='OFFLINE'))
         await client.close()
-        return
+        # return
     # end if - Bot stop
 
     # Let an admin reset the bot
@@ -361,8 +361,9 @@ async def on_message(message):
         # embed.add_field(name="*out of*", value="*" + str(max_possible) +
         #                                        " (" + str(round(total_result/max_possible*100)) + "%)*", inline=True)
 
-        # Send message to Discord
+        # Send message to Discord and update status
         await message.channel.send(warning, embed=embed)
+        await client.change_presence(activity=discord.Game(name="Rolled " + str(rolled) + " dice"))
     # end if
 
 
