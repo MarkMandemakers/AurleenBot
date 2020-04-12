@@ -76,6 +76,7 @@ async def on_message(message):
     # Setup variables
     global rolled
     msg = ""
+    add_msg = ""
 
     # Ignore messages from the bot itself or ones that are no commands
     if message.author == client.user or not message.content.startswith("!"):
@@ -114,6 +115,22 @@ async def on_message(message):
         print("Showed info")
         return
     # end if
+
+    # Custom presets for 1d20 + 1d4
+    if msg.startswith("!bless"):
+        msg = msg.replace("!bless", "!r1d20+1d4")
+        add_msg += "\n*Bless: +1d4*"
+    # end if - bless preset
+
+    if msg.startswith("!guidance"):
+        msg = msg.replace("!guidance", "!r1d20+1d4")
+        add_msg += "\n*Guidance: +1d4*"
+    # end if - guidance preset
+
+    if msg.startswith("!bane"):
+        msg = msg.replace("!bane", "!r1d20-1d4")
+        add_msg += "\n*Bane: -1d4*"
+    # end if - guidance preset
 
     # Only process message if it is a command for rolling (i.e. starting with '!r')
     if msg.startswith("!r"):
@@ -186,7 +203,7 @@ async def on_message(message):
         del modifier
 
         # Check if dice limit is reached or no dice are left after unifying
-        add_msg = ""
+
         if total_dice_count == 0:
             print("[" + str(message.content) + "] No dice left after unifying")
             await message.channel.send(str(message.author.mention) +
@@ -233,6 +250,9 @@ async def on_message(message):
         total_result = 0
         max_possible = 0
 
+        print("Type:", dice_type)
+        print("Count:", dice_count)
+
         # Roll base dice
         if dice_type[0] == 20 and dice_count[0] == 1:
             # Start with 1d20, natural 1 or natural 20 can occur
@@ -256,17 +276,47 @@ async def on_message(message):
                 max_possible += dice_type[0]
             # end for
         # end if/else
+        print("Base:", total_result)
+        print(len(dice_type))
 
         # Any other dice rolling
         for i in range(1, len(dice_type)):
-            for j in range(dice_count[i]):
+            if abs(dice_count[i]) == 1:
+                # Roll once
                 result = roll(dice_type[i])
-                embed.add_field(name="d" + str(dice_type[i]) + " #" + str(j+1), value=result, inline=True)
 
-                total_result += result
-                max_possible += dice_type[i]
-            # end for
+                if dice_count[i] < 0:
+                    embed.add_field(name="-d" + str(dice_type[i]), value="-" + str(result),
+                                    inline=True)
+
+                    total_result -= result
+                    # max_possible += dice_type[i]
+                else:
+                    embed.add_field(name="d" + str(dice_type[i]), value=result, inline=True)
+
+                    total_result += result
+                    max_possible += dice_type[i]
+                # end if/else
+            else:
+                # Roll multiple dice
+                for j in range(abs(dice_count[i])):
+                    result = roll(dice_type[i])
+
+                    if dice_count[i] < 0:
+                        embed.add_field(name="-d" + str(dice_type[i]) + " #" + str(j+1), value="-" + str(result), inline=True)
+
+                        total_result -= result
+                        # max_possible += dice_type[i]
+                    else:
+                        embed.add_field(name="d" + str(dice_type[i]) + " #" + str(j+1), value=result, inline=True)
+
+                        total_result += result
+                        max_possible += dice_type[i]
+                    # end if/else
+                # end for
+            # end if/else
         # end for
+        print("Additional Dice:", total_result)
 
         # Add modifier to calculate total
         if modifier_total != 0:
