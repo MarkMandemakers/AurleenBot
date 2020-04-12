@@ -9,6 +9,7 @@ print("Starting up...")
 # Setup global variables
 client = discord.Client()
 rolled = 0
+roll_stats = True
 
 # Load data from json file
 try:
@@ -76,6 +77,8 @@ async def on_ready():
 async def on_message(message):
     # Setup variables
     global rolled
+    global roll_stats
+    nat_one_twenty = False
     msg = ""
     add_msg = ""
     warning = ""
@@ -101,7 +104,7 @@ async def on_message(message):
     if msg.startswith(("!quit", "!stop", "!exit")) and str(message.author) in ADMINS:
         print("Shutting down...")
         await client.change_presence(status=discord.Status.dnd, afk=True, activity=discord.Game(name='OFFLINE'))
-        await message.add_reaction("👍")
+        await message.add_reaction("👋")
         await client.close()
     # end if - Bot stop
 
@@ -109,10 +112,23 @@ async def on_message(message):
     if msg.startswith("!reset") and str(message.author) in ADMINS:
         print("Resetting...")
         rolled = 0
+        roll_stats = True
         await client.change_presence(activity=discord.Game(name='Ready to roll!'))
         await message.add_reaction("👍")
+        # await message.add_reaction("✅")
         return
     # end if - Bot reset
+
+    # Let admin toggle "out of" for rolls
+    if msg.startswith("!toggle") and str(message.author) in ADMINS:
+        roll_stats = not roll_stats
+        if roll_stats:
+            await message.add_reaction("✅")
+        else:
+            await message.add_reaction("❎")
+        # end if/else
+        return
+    # end if - toggle
 
     # BOT INFORMATION
     if msg.startswith(('!help', "!aurleenbot", "!aurleen")):
@@ -223,7 +239,7 @@ async def on_message(message):
         # Setup embedding for dice roll response
         embed = discord.Embed(title="Rolling for " + str(message.author.name), description=desc, color=0x76883c)
         total_result = 0
-        max_possible = 0
+        max_possible = 20
 
         # Roll base dice at (dis)advantage
         d20_1 = roll(20)
@@ -232,15 +248,19 @@ async def on_message(message):
             total_result = min(d20_1, d20_2)
             if total_result == 20:
                 embed.set_footer(text="NATURAL 20")
+                nat_one_twenty = True
             elif total_result == 1:
                 embed.set_footer(text="NATURAL 1")
+                nat_one_twenty = True
             # end if/elif
         else:
             total_result = max(d20_1, d20_2)
             if total_result == 20:
                 embed.set_footer(text="NATURAL 20")
+                nat_one_twenty = True
             elif total_result == 1:
                 embed.set_footer(text="NATURAL 1")
+                nat_one_twenty = True
             # end if/elif
         # end if/else
 
@@ -300,9 +320,15 @@ async def on_message(message):
 
         total_result += modifier_total
         max_possible += modifier_total
+
+        # Add total to embedding
         embed.add_field(name="Total", value=total_result, inline=False)
-        # embed.add_field(name="*out of*", value="*" + str(max_possible) +
-        #                                        " (" + str(round(total_result/max_possible*100)) + "%)*", inline=True)
+
+        # Add stats if wanted
+        if not nat_one_twenty and roll_stats:
+            embed.set_footer(text=str(total_result) + " out of " + str(max_possible) +
+                                  " (" + str(round(total_result/max_possible*100)) + "%)")
+        # end if
 
         # Send message to Discord and update status
         await message.channel.send(warning, embed=embed)
@@ -480,8 +506,10 @@ async def on_message(message):
 
             if result == 20:
                 embed.set_footer(text="NATURAL 20")
+                nat_one_twenty = True
             elif result == 1:
                 embed.set_footer(text="NATURAL 1")
+                nat_one_twenty = True
             # end if/elif
 
             total_result += result
@@ -541,9 +569,15 @@ async def on_message(message):
 
         total_result += modifier_total
         max_possible += modifier_total
+
+        # Add total to embedding
         embed.add_field(name="Total", value=total_result, inline=False)
-        # embed.add_field(name="*out of*", value="*" + str(max_possible) +
-        #                                        " (" + str(round(total_result/max_possible*100)) + "%)*", inline=True)
+
+        # Add stats if wanted
+        if not nat_one_twenty and roll_stats:
+            embed.set_footer(text=str(total_result) + " out of " + str(max_possible) +
+                                  " (" + str(round(total_result/max_possible*100)) + "%)")
+        # end if
 
         # Send message to Discord and update status
         await message.channel.send(warning, embed=embed)
