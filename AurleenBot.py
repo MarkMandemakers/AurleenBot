@@ -154,6 +154,9 @@ async def on_message(message):
             modifier_total += int(mod)
         # end for
 
+        # Cleanup
+        del modifier
+
         # Check if dice limit is reached or no dice are left after unifying
         add_msg = ""
         if total_dice_count == 0:
@@ -163,13 +166,13 @@ async def on_message(message):
             # Do not proceed with message processing
             return
         elif total_dice_count > 20:
-            if len(dice_type) == 1:
-                # No modifier dice
-                dice_count[0] = 20
-                # Add message to description and print warning to console
-                add_msg = "\n*(I can only roll up to 20 dice at once)*"
-                print("[" + str(message.content) + "] Too many dice to roll, limiting base dice count to 20")
-            else:
+            # if len(dice_type) == 1:
+            #     # No modifier dice
+            #     dice_count[0] = 20
+            #     # Add message to description and print warning to console
+            #     add_msg = "\n*(I can only roll up to 20 dice at once)*"
+            #     print("[" + str(message.content) + "] Too many dice to roll, limiting base dice count to 20")
+            # else:
                 # There are modifier dice, now just throw error
                 print("[" + str(message.content) + "] Too many dice to roll, throwing error")
                 await message.channel.send(
