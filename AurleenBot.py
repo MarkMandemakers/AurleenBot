@@ -3,6 +3,9 @@ import random
 import json
 import re
 
+# DEBUG
+print("Starting up...")
+
 # Setup global variables
 client = discord.Client()
 rolled = 0
@@ -72,9 +75,10 @@ async def on_ready():
 async def on_message(message):
     # Setup variables
     global rolled
+    msg = ""
 
-    # Ignore messages from the bot itself
-    if message.author == client.user:
+    # Ignore messages from the bot itself or ones that are no commands
+    if message.author == client.user or not message.content.startswith("!"):
         return
     # end if
 
@@ -88,6 +92,27 @@ async def on_message(message):
         # Convert message to lowercase and remove spaces for easier processing
         msg = message.content.lower()
         msg = msg.replace(" ", "")
+    # end if
+
+    # TODO
+    # Run regular rolling when calling !d20 or !rd20
+
+    # BOT INFORMATION
+    if msg.startswith('!help') or msg.startswith('!aurleenbot'):
+        embed = discord.Embed(title="AurleenBot Sample Commands", color=0x76883c)
+        embed.add_field(name="!r1d20", value="Roll a d20", inline=False)
+        embed.add_field(name="!r5d6", value="Roll five d6 and sum up", inline=False)
+        embed.add_field(name="!advantage (!adv) / !disadvantage (!dis)",
+                        value="Roll two d20 and keep the highest or lowest respectively", inline=False)
+        embed.add_field(name="!bless / !guidance", value="Roll a d20 and a d4", inline=False)
+        embed.add_field(name="All commands support modifier dice, e.g. !r1d20+1d4",
+                        value="Add + or - your modifier dice to add it to the total of the roll", inline=False)
+        embed.add_field(name="All commands also support a modifier, e.g. !r1d20+5 or !r1d20+1d4-2",
+                        value="Add + or - your modifier to add it to the total of the roll", inline=False)
+        embed.set_footer(text="pls don't break me")
+        await message.channel.send(embed=embed)
+        print("Showed info")
+        return
     # end if
 
     # Only process message if it is a command for rolling (i.e. starting with '!r')
@@ -255,23 +280,6 @@ async def on_message(message):
 
         # Send message to Discord
         await message.channel.send(embed=embed)
-    # end if
-
-    # BOT INFORMATION
-    if msg.startswith('!help') or msg.startswith('!aurleenbot'):
-        embed = discord.Embed(title="AurleenBot Sample Commands", color=0x76883c)
-        embed.add_field(name="!r1d20", value="Roll a d20", inline=False)
-        embed.add_field(name="!r5d6", value="Roll five d6 and sum up", inline=False)
-        embed.add_field(name="!advantage (!adv) / !disadvantage (!dis)",
-                        value="Roll two d20 and keep the highest or lowest respectively", inline=False)
-        embed.add_field(name="!bless / !guidance", value="Roll a d20 and a d4", inline=False)
-        embed.add_field(name="All commands support modifier dice, e.g. !r1d20+1d4",
-                        value="Add + or - your modifier dice to add it to the total of the roll", inline=False)
-        embed.add_field(name="All commands also support a modifier, e.g. !r1d20+5 or !r1d20+1d4-2",
-                        value="Add + or - your modifier to add it to the total of the roll", inline=False)
-        embed.set_footer(text="pls don't break me")
-        await message.channel.send(embed=embed)
-        print("Showed info")
     # end if
 
     # General rolling
