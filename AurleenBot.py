@@ -2,8 +2,6 @@ import discord
 import random
 import json
 import re
-import sys
-import time
 
 # DEBUG
 print("Starting up...")
@@ -12,7 +10,7 @@ print("Starting up...")
 client = discord.Client()
 rolled = 0
 
-# Load data from json fil
+# Load data from json file
 try:
     with open('data.json') as f:
         data = json.load(f)
@@ -103,6 +101,7 @@ async def on_message(message):
     if msg.startswith(("!quit", "!stop", "!exit")) and str(message.author) in ADMINS:
         print("Shutting down...")
         await client.change_presence(status=discord.Status.dnd, afk=True, activity=discord.Game(name='OFFLINE'))
+        await message.add_reaction("👍")
         await client.close()
     # end if - Bot stop
 
@@ -111,6 +110,7 @@ async def on_message(message):
         print("Resetting...")
         rolled = 0
         await client.change_presence(activity=discord.Game(name='Ready to roll!'))
+        await message.add_reaction("👍")
         return
     # end if - Bot reset
 
@@ -126,7 +126,7 @@ async def on_message(message):
                         value="Add + or - your modifier dice to add it to the total of the roll", inline=False)
         embed.add_field(name="All commands also support a modifier, e.g. !r1d20+5 or !r1d20+1d4-2",
                         value="Add + or - your modifier to add it to the total of the roll", inline=False)
-        embed.set_footer(text="*pls don't break me*")
+        embed.set_footer(text="pls don't break me")
         await message.channel.send(embed=embed)
         print("Showed info")
         return
@@ -313,19 +313,19 @@ async def on_message(message):
     if msg.startswith("!bless"):
         # Replace preset with corresponding dice, add comment and continue as normal
         msg = msg.replace("!bless", "!r1d20+1d4")
-        add_msg += "\n*Bless: +1d4*"
+        add_msg = "*Bless: +1d4*"
     # end if - bless preset
 
     if msg.startswith("!guidance"):
         # Replace preset with corresponding dice, add comment and continue as normal
         msg = msg.replace("!guidance", "!r1d20+1d4")
-        add_msg += "\n*Guidance: +1d4*"
+        add_msg = "*Guidance: +1d4*"
     # end if - guidance preset
 
     if msg.startswith("!bane"):
         # Replace preset with corresponding dice, add comment and continue as normal
         msg = msg.replace("!bane", "!r1d20-1d4")
-        add_msg += "\n*Bane: -1d4*"
+        add_msg = "*Bane: -1d4*"
     # end if - guidance preset
 
     # Handle slight errors in command (e.g. !rd20, !d20)
@@ -452,7 +452,8 @@ async def on_message(message):
         # end if/elif
 
         # Create roll description
-        desc = str(dice_count[0]) + "d" + str(dice_type[0])
+        desc = add_msg + "\n"
+        desc += str(dice_count[0]) + "d" + str(dice_type[0])
         for i in range(1, len(dice_type)):
             if int(dice_count[i]) < 0:
                 desc += str(dice_count[i]).replace("-", " - ") + "d" + str(dice_type[i])
@@ -465,7 +466,6 @@ async def on_message(message):
         elif int(modifier_total) > 0:
             desc += " + " + str(modifier_total)
         # end if/elif
-        desc += add_msg
 
         # Setup embedding for dice roll response
         embed = discord.Embed(title="Rolling for " + str(message.author.name), description=desc, color=0x76883c)
