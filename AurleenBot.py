@@ -77,6 +77,7 @@ async def on_message(message):
     global rolled
     msg = ""
     add_msg = ""
+    warning = ""
 
     # Ignore messages from the bot itself or ones that are no commands
     if message.author == client.user or not message.content.startswith("!"):
@@ -94,9 +95,6 @@ async def on_message(message):
         msg = message.content.lower()
         msg = msg.replace(" ", "")
     # end if
-
-    # TODO
-    # Run regular rolling when calling !d20 or !rd20
 
     # BOT INFORMATION
     if msg.startswith(('!help', "!aurleenbot", "!aurleen")):
@@ -131,6 +129,27 @@ async def on_message(message):
         msg = msg.replace("!bane", "!r1d20-1d4")
         add_msg += "\n*Bane: -1d4*"
     # end if - guidance preset
+
+    # Handle slight errors in command (e.g. !rd20, !d20)
+    if msg.startswith(("!rd", "!d")):
+        format_dice = re.findall('!r*d\d+', msg)
+        if len(format_dice) > 0:
+            # There is a dice in there?
+            msg = msg.replace("!rd", "!r1d")
+            msg = msg.replace("!d", "!r1d")
+            print("[" + str(message.content) + "] Incorrect command format")
+            if warning == "":
+                warning = message.author.mention + "You did not use the correct format for rolling, " \
+                                                   "but I assume you want to roll 1d" + \
+                                                   str(format_dice[0].split("d")[1]) + ". " \
+                                                   "Use **!help** to see what formats are supported."
+            else:
+                warning += "\nYou did not use the correct format for rolling, " \
+                           "but I assume you want to roll 1d" + \
+                           str(format_dice[0].split("d")[1]) + ". " \
+                           "Use **!help** to see what formats are supported."
+        # end if
+    # end if - slight errors in command
 
     # Only process message if it is a command for rolling (i.e. starting with '!r')
     if msg.startswith("!r"):
@@ -324,7 +343,7 @@ async def on_message(message):
         #                                        " (" + str(round(total_result/max_possible*100)) + "%)*", inline=True)
 
         # Send message to Discord
-        await message.channel.send(embed=embed)
+        await message.channel.send(warning, embed=embed)
     # end if
 
 
