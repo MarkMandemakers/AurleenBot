@@ -98,7 +98,7 @@ async def on_message(message):
     # Run regular rolling when calling !d20 or !rd20
 
     # BOT INFORMATION
-    if msg.startswith('!help') or msg.startswith('!aurleenbot'):
+    if msg.startswith(('!help', "!aurleenbot", "!aurleen")):
         embed = discord.Embed(title="AurleenBot Sample Commands", color=0x76883c)
         embed.add_field(name="!r1d20", value="Roll a d20", inline=False)
         embed.add_field(name="!r5d6", value="Roll five d6 and sum up", inline=False)
@@ -189,8 +189,9 @@ async def on_message(message):
         add_msg = ""
         if total_dice_count == 0:
             print("[" + str(message.content) + "] No dice left after unifying")
-            await message.channel.send(str(message.author.mention) + " This doesn\'t add up with the number of dice you want to roll.\n"
-                                                                     "Please use **!help** to see what formats are supported.")
+            await message.channel.send(str(message.author.mention) +
+                                       " This doesn\'t add up with the number of dice you want to roll.\n"
+                                       "Please use **!help** to see what formats are supported.")
             # Do not proceed with message processing
             return
         elif total_dice_count > 20:
