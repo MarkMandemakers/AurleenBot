@@ -2,6 +2,8 @@ import discord
 import random
 import json
 import re
+import sys
+import time
 
 # DEBUG
 print("Starting up...")
@@ -15,6 +17,7 @@ try:
     with open('data.json') as f:
         data = json.load(f)
         BOT_TOKEN = data['bot_token']
+        ADMINS = data['admins']
 except Exception as e:
     print("Error, probably no data.json found: " + str(e))
 # end try except
@@ -95,6 +98,22 @@ async def on_message(message):
         msg = message.content.lower()
         msg = msg.replace(" ", "")
     # end if
+
+    # Let an admin shut down the bot
+    if msg.startswith(("!quit", "!stop", "!exit")) and str(message.author) in ADMINS:
+        print("Shutting down...")
+        await client.change_presence(status=discord.Status.offline, afk=True, activity=discord.Game(name='OFFLINE'))
+        await client.close()
+        return
+    # end if - Bot stop
+
+    # Let an admin reset the bot
+    if msg.startswith("!reset") and str(message.author) in ADMINS:
+        print("Resetting...")
+        rolled = 0
+        await client.change_presence(activity=discord.Game(name='Ready to roll!'))
+        return
+    # end if - Bot reset
 
     # BOT INFORMATION
     if msg.startswith(('!help', "!aurleenbot", "!aurleen")):
