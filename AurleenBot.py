@@ -2,6 +2,7 @@ import discord
 import random
 import json
 import re
+import time
 
 # DEBUG
 print("Starting up...")
@@ -75,6 +76,7 @@ async def on_ready():
 # When a message is received
 @client.event
 async def on_message(message):
+    start = time.time()
     # Setup variables
     global rolled
     global roll_stats
@@ -264,16 +266,17 @@ async def on_message(message):
             # end if/elif
         # end if/else
 
-        if d20_1 > d20_2:
+        # Highlight the selected result
+        if d20_1 == total_result:
             embed.add_field(name="d20 #1", value="**" + str(d20_1) + "**", inline=True)
-            embed.add_field(name="d20 #2", value=d20_2, inline=True)
-        elif d20_1 < d20_2:
-            embed.add_field(name="d20 #1", value=d20_1, inline=True)
-            embed.add_field(name="d20 #2", value="**" + str(d20_2) + "**", inline=True)
         else:
-            embed.add_field(name="d20 #1", value="**" + str(d20_1) + "**", inline=True)
-            embed.add_field(name="d20 #2", value="**" + str(d20_2) + "**", inline=True)
-        # end if/elif/else
+            embed.add_field(name="d20 #2", value=d20_1, inline=True)
+        # end if/else
+        if d20_2 == total_result:
+            embed.add_field(name="d20 #1", value="**" + str(d20_2) + "**", inline=True)
+        else:
+            embed.add_field(name="d20 #2", value=d20_2, inline=True)
+        # end if/else
 
         # Any other dice rolling
         for i in range(0, len(dice_type)):
@@ -333,6 +336,8 @@ async def on_message(message):
         # Send message to Discord and update status
         await message.channel.send(warning, embed=embed)
         await client.change_presence(activity=discord.Game(name="Rolled " + str(rolled) + " dice"))
+        print(str(time.time() - start) + "sec")
+        return
     # end if - advantage / disadvantage
 
     # Custom presets for 1d20 + 1d4
@@ -582,6 +587,8 @@ async def on_message(message):
         # Send message to Discord and update status
         await message.channel.send(warning, embed=embed)
         await client.change_presence(activity=discord.Game(name="Rolled " + str(rolled) + " dice"))
+        print(str(time.time() - start) + "sec")
+        return
     # end if - Regular dice roll
 # end def
 
