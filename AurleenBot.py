@@ -83,12 +83,15 @@ async def on_message(message):
         # await message.channel.send(message.author.name + message.author.display_name)
     # end if
 
-    # Only process message if it is a command for rolling (i.e. starting with '!r')
-    if message.content.lower().startswith("!r"):
+    # If a command is called, convert message and proceed
+    if message.content.startswith("!"):
         # Convert message to lowercase and remove spaces for easier processing
         msg = message.content.lower()
         msg = msg.replace(" ", "")
+    # end if
 
+    # Only process message if it is a command for rolling (i.e. starting with '!r')
+    if msg.startswith("!r"):
         # Regex search on message to see what the command is asking for
         # !r(\d+d\d+)       !r1d20 (base dice)
         # !(r*)d\d+         base dice (incorrect command, i.e. !rd20, !d20
@@ -252,6 +255,23 @@ async def on_message(message):
 
         # Send message to Discord
         await message.channel.send(embed=embed)
+    # end if
+
+    # BOT INFORMATION
+    if msg.startswith('!help') or msg.startswith('!aurleenbot'):
+        embed = discord.Embed(title="AurleenBot Sample Commands", color=0x76883c)
+        embed.add_field(name="!r1d20", value="Roll a d20", inline=False)
+        embed.add_field(name="!r5d6", value="Roll five d6 and sum up", inline=False)
+        embed.add_field(name="!advantage (!adv) / !disadvantage (!dis)",
+                        value="Roll two d20 and keep the highest or lowest respectively", inline=False)
+        embed.add_field(name="!bless / !guidance", value="Roll a d20 and a d4", inline=False)
+        embed.add_field(name="All commands support modifier dice, e.g. !r1d20+1d4",
+                        value="Add + or - your modifier dice to add it to the total of the roll", inline=False)
+        embed.add_field(name="All commands also support a modifier, e.g. !r1d20+5 or !r1d20+1d4-2",
+                        value="Add + or - your modifier to add it to the total of the roll", inline=False)
+        embed.set_footer(text="pls don't break me")
+        await message.channel.send(embed=embed)
+        print("Showed info")
     # end if
 
     # General rolling
