@@ -219,13 +219,13 @@ async def on_message(message):
             #     add_msg = "\n*(I can only roll up to 20 dice at once)*"
             #     print("[" + str(message.content) + "] Too many dice to roll, limiting base dice count to 20")
             # else:
-                # There are modifier dice, now just throw error
-                print("[" + str(message.content) + "] Too many dice to roll, throwing error")
-                await message.channel.send(
-                    str(message.author.mention) + " Sorry, I cannot roll that many dice at once.\n"
-                                                  "Please try to roll 20 dice or less.")
-                # Do not proceed with message processing
-                return
+            # There are modifier dice, now just throw error
+            print("[" + str(message.content) + "] Too many dice to roll, throwing error")
+            await message.channel.send(
+                str(message.author.mention) + " Sorry, I cannot roll that many dice at once.\n"
+                                              "Please try to roll 20 dice or less.")
+            # Do not proceed with message processing
+            return
             # end if/else
         # end if/elif
 
@@ -250,9 +250,6 @@ async def on_message(message):
         total_result = 0
         max_possible = 0
 
-        print("Type:", dice_type)
-        print("Count:", dice_count)
-
         # Roll base dice
         if dice_type[0] == 20 and dice_count[0] == 1:
             # Start with 1d20, natural 1 or natural 20 can occur
@@ -276,8 +273,6 @@ async def on_message(message):
                 max_possible += dice_type[0]
             # end for
         # end if/else
-        print("Base:", total_result)
-        print(len(dice_type))
 
         # Any other dice rolling
         for i in range(1, len(dice_type)):
@@ -316,7 +311,6 @@ async def on_message(message):
                 # end for
             # end if/else
         # end for
-        print("Additional Dice:", total_result)
 
         # Add modifier to calculate total
         if modifier_total != 0:
@@ -333,61 +327,7 @@ async def on_message(message):
         await message.channel.send(embed=embed)
     # end if
 
-    # General rolling
-    # if message.content.startswith("!r") or message.content.startswith("/r"):
-    #     regex = re.findall(r'\d+', message.content)
-    #     nums = list(map(int, regex))
-    #
-    #     dice_count = nums[0]
-    #     dice = nums[1]
-    #
-    #     # Limit dice count to 20
-    #     if dice_count > 20:
-    #         await message.channel.send("Please roll no more than 20 dice at once")
-    #         dice_count = 20
-    #     # end if
-    #
-    #     total = 0
-    #     desc = str(dice_count) + "d" + str(dice)
-    #
-    #     if len(nums) > 2:
-    #         if "-" in message.content:
-    #             bonus = -1 * nums[2]
-    #             desc += " - " + str(nums[2])
-    #         else:
-    #             bonus = nums[2]
-    #             desc += " + " + str(nums[2])
-    #     else:
-    #         bonus = 0
-    #     # end if/else
-    #     embed = discord.Embed(title="Rolling for " + str(message.author.name), description=desc, color=0x76883c)
-    #
-    #     if dice_count == 1 and dice == 20:
-    #         d20 = roll(20)
-    #         total += d20
-    #         embed.add_field(name="d20", value=d20, inline=True)
-    #         if d20 == 20:
-    #             embed.set_footer(text="NATURAL 20")
-    #         elif d20 == 1:
-    #             embed.set_footer(text="NATURAL 1")
-    #         # end if/else
-    #     else:
-    #         for r in range(dice_count):
-    #             roll = roll(dice)
-    #             total += roll
-    #             embed.add_field(name="d" + str(dice) + " #" + str(r+1), value=roll, inline=True)
-    #         # end for
-    #
-    #     if len(nums) > 2:
-    #         embed.add_field(name="Modifier", value=bonus, inline=True)
-    #     # end if
-    #
-    #     total += bonus
-    #     embed.add_field(name="Total", value=total, inline=False)
-    #
-    #     await message.channel.send(embed=embed)
-    # # end if
-    #
+
     # # Advantage
     # if message.content.startswith("!adv") or message.content.startswith("/adv"):
     #     regex = re.findall(r'\d+', message.content)
