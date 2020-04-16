@@ -20,6 +20,8 @@ try:
         ADMINS = data['admins']
 except Exception as e:
     print("Error, probably no data.json found: " + str(e))
+
+
 # end try except
 
 
@@ -28,6 +30,8 @@ def roll(d):
     global rolled
     rolled += 1
     return random.randint(1, d)
+
+
 # end def
 
 
@@ -61,6 +65,8 @@ def unify_dice(dtype, count):
     # end for
 
     return [new_type, new_count]
+
+
 # end def
 
 
@@ -70,6 +76,8 @@ async def on_ready():
     print('Ready on Discord as {0.user}'.format(client))
     await client.change_presence(activity=discord.Game(name='Ready to roll!'))
     # await client.change_presence(activity=discord.Game(name='Don\'t mind me, just testing the bot!'))
+
+
 # end def
 
 
@@ -80,7 +88,6 @@ async def on_message(message):
     # Setup variables
     global rolled
     global roll_stats
-    nat_one_twenty = False
     msg = ""
     add_msg = ""
     warning = ""
@@ -92,7 +99,7 @@ async def on_message(message):
 
     # DEBUG
     # if message.content.startswith("!debug"):
-        # await message.channel.send(message.author.name + message.author.display_name)
+    # await message.channel.send(message.author.name + message.author.display_name)
     # end if
 
     # If a command is called, convert message and proceed
@@ -102,6 +109,9 @@ async def on_message(message):
         msg = msg.replace(" ", "")
     # end if
 
+    ###########################################################################################################
+    # ADMIN
+    ###########################################################################################################
     # Let an admin shut down the bot
     if msg.startswith(("!quit", "!stop", "!exit")) and str(message.author) in ADMINS:
         print("Shutting down...")
@@ -132,7 +142,9 @@ async def on_message(message):
         return
     # end if - toggle
 
+    ###########################################################################################################
     # BOT INFORMATION
+    ###########################################################################################################
     if msg.startswith(('!help', "!aurleenbot", "!aurleen")):
         embed = discord.Embed(title="AurleenBot Sample Commands", color=0x76883c)
         embed.add_field(name="!r1d20", value="Roll a d20", inline=False)
@@ -150,7 +162,9 @@ async def on_message(message):
         return
     # end if
 
-    # Rolling with ADVANTAGE or DISADVANTAGE
+    ###########################################################################################################
+    # ROLLING WITH ADVANTAGE/ DISADVANTAGE
+    ###########################################################################################################
     if msg.startswith(("!adv", "!dis")):
         # Find additional modifier (dice or not)
         modifier_dice = re.findall('[\+\-]\d*d\d+', msg)
@@ -240,6 +254,7 @@ async def on_message(message):
 
         # Setup embedding for dice roll response
         embed = discord.Embed(title="Rolling for " + str(message.author.name), description=desc, color=0x76883c)
+        footer = ""
         total_result = 0
         max_possible = 20
 
@@ -249,20 +264,16 @@ async def on_message(message):
         if disadvantage:
             total_result = min(d20_1, d20_2)
             if total_result == 20:
-                embed.set_footer(text="NATURAL 20")
-                nat_one_twenty = True
+                footer = "NATURAL 20"
             elif total_result == 1:
-                embed.set_footer(text="NATURAL 1")
-                nat_one_twenty = True
+                footer = "NATURAL 1"
             # end if/elif
         else:
             total_result = max(d20_1, d20_2)
             if total_result == 20:
-                embed.set_footer(text="NATURAL 20")
-                nat_one_twenty = True
+                footer = "NATURAL 20"
             elif total_result == 1:
-                embed.set_footer(text="NATURAL 1")
-                nat_one_twenty = True
+                footer = "NATURAL 1"
             # end if/elif
         # end if/else
 
@@ -302,12 +313,13 @@ async def on_message(message):
                     result = roll(dice_type[i])
 
                     if dice_count[i] < 0:
-                        embed.add_field(name="-d" + str(dice_type[i]) + " #" + str(j+1), value="-" + str(result), inline=True)
+                        embed.add_field(name="-d" + str(dice_type[i]) + " #" + str(j + 1), value="-" + str(result),
+                                        inline=True)
 
                         total_result -= result
                         # max_possible += dice_type[i]
                     else:
-                        embed.add_field(name="d" + str(dice_type[i]) + " #" + str(j+1), value=result, inline=True)
+                        embed.add_field(name="d" + str(dice_type[i]) + " #" + str(j + 1), value=result, inline=True)
 
                         total_result += result
                         max_possible += dice_type[i]
@@ -323,14 +335,24 @@ async def on_message(message):
 
         total_result += modifier_total
         max_possible += modifier_total
+        min_possible = total_dice_count + modifier_total
+        print(min_possible)
 
         # Add total to embedding
         embed.add_field(name="Total", value=total_result, inline=False)
 
         # Add stats if wanted
-        if not nat_one_twenty and roll_stats:
-            embed.set_footer(text=str(total_result) + " out of " + str(max_possible) +
-                                  " (" + str(round(total_result/max_possible*100)) + "%)")
+        if roll_stats:
+            if footer == "":
+                # Footer is empty (so no nat. 1 or 20)
+                embed.set_footer(text="min. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " +
+                                      str(round(
+                                          (total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
+            else:
+                footer += ("\nmin. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " +
+                           str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
+                embed.set_footer(text=footer)
+            # end if/else
         # end if
 
         # Send message to Discord and update status
@@ -340,6 +362,9 @@ async def on_message(message):
         return
     # end if - advantage / disadvantage
 
+    ###########################################################################################################
+    # PRESETS
+    ###########################################################################################################
     # Custom presets for 1d20 + 1d4
     if msg.startswith("!bless"):
         # Replace preset with corresponding dice, add comment and continue as normal
@@ -373,19 +398,21 @@ async def on_message(message):
             if warning == "":
                 warning = message.author.mention + "You did not use the correct format for rolling, " \
                                                    "but I assume you want to roll 1d" + \
-                                                   str(format_dice[0].split("d")[1]) + ". " \
-                                                   "Use **!help** to see what formats are supported."
+                          str(format_dice[0].split("d")[1]) + ". " \
+                                                              "Use **!help** to see what formats are supported."
             else:
                 warning += "\nYou did not use the correct format for rolling, " \
                            "but I assume you want to roll 1d" + \
                            str(format_dice[0].split("d")[1]) + ". " \
-                           "Use **!help** to see what formats are supported."
+                                                               "Use **!help** to see what formats are supported."
             # end if/else
         # end if
         # Continue using fixed command
     # end if - slight errors in command
 
-    # Regular dice rolls
+    ###########################################################################################################
+    # REGULAR DICE ROLLS
+    ###########################################################################################################
     if msg.startswith("!r"):
         # Regex search on message to see what the command is asking for
         # !r(\d+d\d+)       !r1d20 (base dice)
@@ -404,7 +431,7 @@ async def on_message(message):
             # No base dice found (or too many), return error message
             print("[" + str(message.content) + "] Not correct number of base dice")
             await message.channel.send(str(message.author.mention) + " Something seems to be off with that command.\n"
-                                       "Please use **!help** to see what formats are supported.")
+                                                                     "Please use **!help** to see what formats are supported.")
             # Do not proceed with message processing
             return
         # end if
@@ -500,6 +527,7 @@ async def on_message(message):
 
         # Setup embedding for dice roll response
         embed = discord.Embed(title="Rolling for " + str(message.author.name), description=desc, color=0x76883c)
+        footer = ""
         total_result = 0
         max_possible = 0
 
@@ -510,11 +538,9 @@ async def on_message(message):
             embed.add_field(name="d20", value=result, inline=True)
 
             if result == 20:
-                embed.set_footer(text="NATURAL 20")
-                nat_one_twenty = True
+                footer = "NATURAL 20"
             elif result == 1:
-                embed.set_footer(text="NATURAL 1")
-                nat_one_twenty = True
+                footer = "NATURAL 1"
             # end if/elif
 
             total_result += result
@@ -522,7 +548,7 @@ async def on_message(message):
         else:
             for j in range(dice_count[0]):
                 result = roll(dice_type[0])
-                embed.add_field(name="d" + str(dice_type[0]) + " #" + str(j+1), value=result, inline=True)
+                embed.add_field(name="d" + str(dice_type[0]) + " #" + str(j + 1), value=result, inline=True)
 
                 total_result += result
                 max_possible += dice_type[0]
@@ -553,12 +579,13 @@ async def on_message(message):
                     result = roll(dice_type[i])
 
                     if dice_count[i] < 0:
-                        embed.add_field(name="-d" + str(dice_type[i]) + " #" + str(j+1), value="-" + str(result), inline=True)
+                        embed.add_field(name="-d" + str(dice_type[i]) + " #" + str(j + 1), value="-" + str(result),
+                                        inline=True)
 
                         total_result -= result
                         # max_possible += dice_type[i]
                     else:
-                        embed.add_field(name="d" + str(dice_type[i]) + " #" + str(j+1), value=result, inline=True)
+                        embed.add_field(name="d" + str(dice_type[i]) + " #" + str(j + 1), value=result, inline=True)
 
                         total_result += result
                         max_possible += dice_type[i]
@@ -574,14 +601,23 @@ async def on_message(message):
 
         total_result += modifier_total
         max_possible += modifier_total
+        min_possible = total_dice_count + modifier_total
 
         # Add total to embedding
         embed.add_field(name="Total", value=total_result, inline=False)
 
         # Add stats if wanted
-        if not nat_one_twenty and roll_stats:
-            embed.set_footer(text=str(total_result) + " out of " + str(max_possible) +
-                                  " (" + str(round(total_result/max_possible*100)) + "%)")
+        if roll_stats:
+            if footer == "":
+                # Footer is empty (so no nat. 1 or 20)
+                embed.set_footer(text="min. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " +
+                                      str(round(
+                                          (total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
+            else:
+                footer += ("\nmin. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " +
+                           str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
+                embed.set_footer(text=footer)
+            # end if/else
         # end if
 
         # Send message to Discord and update status
@@ -590,6 +626,8 @@ async def on_message(message):
         print(str(time.time() - start) + "sec")
         return
     # end if - Regular dice roll
+
+
 # end def
 
 client.run(BOT_TOKEN)
