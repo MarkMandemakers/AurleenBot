@@ -114,7 +114,7 @@ async def on_message(message):
     ###########################################################################################################
     # Let an admin shut down the bot
     if msg.startswith(("!quit", "!stop", "!exit")) and str(message.author) in ADMINS:
-        print("Shutting down...")
+        print("[" + str(message.author) + "] Shutting down...")
         await client.change_presence(status=discord.Status.dnd, afk=True, activity=discord.Game(name='OFFLINE'))
         await message.add_reaction("👋")
         await client.close()
@@ -122,7 +122,7 @@ async def on_message(message):
 
     # Let an admin reset the bot
     if msg.startswith("!reset") and str(message.author) in ADMINS:
-        print("Resetting...")
+        print("[" + str(message.author) + "] Resetting...")
         rolled = 0
         roll_stats = True
         await client.change_presence(activity=discord.Game(name='Ready to roll!'))
@@ -135,8 +135,10 @@ async def on_message(message):
     if msg.startswith("!toggle") and str(message.author) in ADMINS:
         roll_stats = not roll_stats
         if roll_stats:
+            print("[" + str(message.author) + "] Turned statistics ON...")
             await message.add_reaction("✅")
         else:
+            print("[" + str(message.author) + "] Turned statistics OFF...")
             await message.add_reaction("❎")
         # end if/else
         return
@@ -158,7 +160,7 @@ async def on_message(message):
                         value="Add + or - your modifier to add it to the total of the roll", inline=False)
         embed.set_footer(text="pls don't break me")
         await message.channel.send(embed=embed)
-        print("Showed info")
+        print("[" + str(message.author) + "] Showed info")
         return
     # end if
 
@@ -207,7 +209,7 @@ async def on_message(message):
 
         # Check if dice limit is reached or no dice are left after unifying
         if total_dice_count == 0:
-            print("[" + str(message.content) + "] No dice left after unifying")
+            print("[" + str(message.content) + "; " + str(message.author) + "] No dice left after unifying")
             await message.channel.send(str(message.author.mention) +
                                        " This doesn\'t add up with the number of dice you want to roll.\n"
                                        "Please use **!help** to see what formats are supported.")
@@ -222,7 +224,7 @@ async def on_message(message):
             #     print("[" + str(message.content) + "] Too many dice to roll, limiting base dice count to 20")
             # else:
             # There are modifier dice, now just throw error
-            print("[" + str(message.content) + "] Too many dice to roll, throwing error")
+            print("[" + str(message.content) + "; " + str(message.author) + "] Too many dice to roll, throwing error")
             await message.channel.send(
                 str(message.author.mention) + " Sorry, I cannot roll that many dice at once.\n"
                                               "Please try to roll 20 dice or less.")
@@ -394,7 +396,7 @@ async def on_message(message):
             msg = msg.replace("!d", "!r1d")
 
             # Print warning to console and prepare to add to embedding
-            print("[" + str(message.content) + "] Incorrect command format")
+            print("[" + str(message.content) + "; " + str(message.author) + "] Incorrect command format")
             if warning == "":
                 warning = message.author.mention + "You did not use the correct format for rolling, " \
                                                    "but I assume you want to roll 1d" + \
@@ -429,7 +431,7 @@ async def on_message(message):
         # Check command format
         if len(base_dice) != 1:
             # No base dice found (or too many), return error message
-            print("[" + str(message.content) + "] Not correct number of base dice")
+            print("[" + str(message.content) + "; " + str(message.author) + "] Not correct number of base dice")
             await message.channel.send(str(message.author.mention) + " Something seems to be off with that command.\n"
                                                                      "Please use **!help** to see what formats are supported.")
             # Do not proceed with message processing
@@ -485,7 +487,7 @@ async def on_message(message):
         # Check if dice limit is reached or no dice are left after unifying
 
         if total_dice_count == 0:
-            print("[" + str(message.content) + "] No dice left after unifying")
+            print("[" + str(message.content) + "; " + str(message.author) + "] No dice left after unifying")
             await message.channel.send(str(message.author.mention) +
                                        " This doesn\'t add up with the number of dice you want to roll.\n"
                                        "Please use **!help** to see what formats are supported.")
@@ -500,7 +502,7 @@ async def on_message(message):
             #     print("[" + str(message.content) + "] Too many dice to roll, limiting base dice count to 20")
             # else:
             # There are modifier dice, now just throw error
-            print("[" + str(message.content) + "] Too many dice to roll, throwing error")
+            print("[" + str(message.content) + "; " + str(message.author) + "] Too many dice to roll, throwing error")
             await message.channel.send(
                 str(message.author.mention) + " Sorry, I cannot roll that many dice at once.\n"
                                               "Please try to roll 20 dice or less.")
