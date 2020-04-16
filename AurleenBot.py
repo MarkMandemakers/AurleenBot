@@ -11,6 +11,7 @@ print("Starting up...")
 client = discord.Client()
 rolled = 0
 roll_stats = True
+prev_call = ""
 
 # Load data from json file
 try:
@@ -88,8 +89,10 @@ async def on_message(message):
     # Setup variables
     global rolled
     global roll_stats
+    global prev_call
     msg = ""
     add_msg = ""
+    title_preset = ""
     warning = ""
 
     # Ignore messages from the bot itself or ones that are no commands
@@ -125,6 +128,7 @@ async def on_message(message):
         print("[" + str(message.author) + "] Resetting...")
         rolled = 0
         roll_stats = True
+        # prev_call = ""
         await client.change_presence(activity=discord.Game(name='Ready to roll!'))
         await message.add_reaction("👍")
         # await message.add_reaction("✅")
@@ -134,6 +138,7 @@ async def on_message(message):
     # Let admin toggle "out of" for rolls
     if msg.startswith("!toggle") and str(message.author) in ADMINS:
         roll_stats = not roll_stats
+        # prev_call = ""
         if roll_stats:
             print("[" + str(message.author) + "] Turned statistics ON...")
             await message.add_reaction("✅")
@@ -154,6 +159,10 @@ async def on_message(message):
         embed.add_field(name="!advantage (!adv) / !disadvantage (!dis)",
                         value="Roll two d20 and keep the highest or lowest respectively", inline=False)
         embed.add_field(name="!bless / !guidance", value="Roll a d20 and a d4", inline=False)
+        embed.add_field(name="!reroll / !re-roll", value="Re-Roll the previous roll command "
+                                                         "\n(__Note__ I re-roll the last call to me from anyone, "
+                                                         "not just from you)",
+                        inline=False)
         embed.add_field(name="All commands support modifier dice, e.g. !r1d20+1d4",
                         value="Add + or - your modifier dice to add it to the total of the roll", inline=False)
         embed.add_field(name="All commands also support a modifier, e.g. !r1d20+5 or !r1d20+1d4-2",
@@ -161,13 +170,33 @@ async def on_message(message):
         embed.set_footer(text="pls don't break me")
         await message.channel.send(embed=embed)
         print("[" + str(message.author) + "] Showed info")
+        # prev_call = ""
         return
-    # end if
+    # end if - bot information
+
+    ###########################################################################################################
+    # RE-ROLLING
+    ###########################################################################################################
+    if msg.startswith(("!reroll", "!re-roll")):
+        if prev_call == "":
+            # Throw error since there is nothing to re-roll
+            print("[" + str(message.content) + "; " + str(message.author) + "] Nothing to re-roll")
+            await message.channel.send(str(message.author.mention) +
+                                       " There is nothing to re-roll...")
+            # Do not proceed with message processing
+            return
+        else:
+            # Execute as normal
+            msg = prev_call
+            title_preset = "Re-"
+        # end if/else
+    # end if - re-rolling
 
     ###########################################################################################################
     # ROLLING WITH ADVANTAGE/ DISADVANTAGE
     ###########################################################################################################
     if msg.startswith(("!adv", "!dis")):
+        prev_call = msg
         # Find additional modifier (dice or not)
         modifier_dice = re.findall('[\+\-]\d*d\d+', msg)
         modifier = re.findall('[\+\-]\d+(?![d\d])', msg)
@@ -255,7 +284,8 @@ async def on_message(message):
         desc += add_msg
 
         # Setup embedding for dice roll response
-        embed = discord.Embed(title="Rolling for " + str(message.author.name), description=desc, color=0x76883c)
+        embed = discord.Embed(title=title_preset + "Rolling for " + str(message.author.name), description=desc,
+                              color=0x76883c)
         footer = ""
         total_result = 0
         max_possible = 20
@@ -372,18 +402,21 @@ async def on_message(message):
         # Replace preset with corresponding dice, add comment and continue as normal
         msg = msg.replace("!bless", "!r1d20+1d4")
         add_msg = "*Bless: +1d4*"
+        prev_call = msg
     # end if - bless preset
 
     if msg.startswith("!guidance"):
         # Replace preset with corresponding dice, add comment and continue as normal
         msg = msg.replace("!guidance", "!r1d20+1d4")
         add_msg = "*Guidance: +1d4*"
+        prev_call = msg
     # end if - guidance preset
 
     if msg.startswith("!bane"):
         # Replace preset with corresponding dice, add comment and continue as normal
         msg = msg.replace("!bane", "!r1d20-1d4")
         add_msg = "*Bane: -1d4*"
+        prev_call = msg
     # end if - guidance preset
 
     # Handle slight errors in command (e.g. !rd20, !d20)
@@ -416,6 +449,7 @@ async def on_message(message):
     # REGULAR DICE ROLLS
     ###########################################################################################################
     if msg.startswith("!r"):
+        prev_call = msg
         # Regex search on message to see what the command is asking for
         # !r(\d+d\d+)       !r1d20 (base dice)
         # !(r*)d\d+         base dice (incorrect command, i.e. !rd20, !d20
@@ -528,7 +562,8 @@ async def on_message(message):
         # end if/elif
 
         # Setup embedding for dice roll response
-        embed = discord.Embed(title="Rolling for " + str(message.author.name), description=desc, color=0x76883c)
+        embed = discord.Embed(title=title_preset + "Rolling for " + str(message.author.name), description=desc,
+                              color=0x76883c)
         footer = ""
         total_result = 0
         max_possible = 0
