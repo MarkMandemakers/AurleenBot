@@ -422,7 +422,7 @@ async def on_message(message):
     # Handle slight errors in command (e.g. !rd20, !d20)
     if msg.startswith(("!rd", "!d")):
         # Is a dice mentioned in there?
-        format_dice = re.findall('!r*d\d+', msg)
+        format_dice = re.findall('!r*\d*d\d+', msg)
         if len(format_dice) > 0:
             # Fix the command
             msg = msg.replace("!rd", "!r1d")
@@ -431,19 +431,39 @@ async def on_message(message):
             # Print warning to console and prepare to add to embedding
             print("[" + str(message.content) + "; " + str(message.author) + "] Incorrect command format")
             if warning == "":
-                warning = message.author.mention + "You did not use the correct format for rolling, " \
-                                                   "but I assume you want to roll 1d" + \
-                          str(format_dice[0].split("d")[1]) + ". " \
-                                                              "Use **!help** to see what formats are supported."
+                warning = message.author.mention + " You did not use the correct format for rolling, " \
+                                                   "but I assume you meant `" + str(msg) + "`. " \
+                                                   "\nUse **!help** to see what formats are supported."
             else:
                 warning += "\nYou did not use the correct format for rolling, " \
-                           "but I assume you want to roll 1d" + \
-                           str(format_dice[0].split("d")[1]) + ". " \
-                                                               "Use **!help** to see what formats are supported."
+                           "but I assume you meant `" + str(msg) + "`. " \
+                           "\nUse **!help** to see what formats are supported."
             # end if/else
         # end if
         # Continue using fixed command
     # end if - slight errors in command
+
+    # Handle other slight error in command (e.g. !1d20)
+    error_regex = re.findall('!\d+d\d+', msg)
+    if len(error_regex) > 0:
+        # Fix the command
+        msg = msg.replace("!", "!r")
+        error_regex[0].replace("!", "")
+        error_split = error_regex[0].split("d")
+
+        # Print warning to console and prepare to add to embedding
+        print("[" + str(message.content) + "; " + str(message.author) + "] Incorrect command format")
+        if warning == "":
+            warning = message.author.mention + " You did not use the correct format for rolling, " \
+                                               "but I assume you meant `" + str(msg) + "`. " \
+                                               "\nUse **!help** to see what formats are supported."
+        else:
+            warning += "\nYou did not use the correct format for rolling, " \
+                       "but I assume you meant `" + str(msg) + "`. " \
+                       "\nUse **!help** to see what formats are supported."
+        # end if/else
+        # Continue using fixed command
+    # end if - Handle other slight error in command (e.g. !1d20)
 
     ###########################################################################################################
     # REGULAR DICE ROLLS
