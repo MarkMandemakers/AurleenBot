@@ -128,6 +128,7 @@ async def on_message(message):
         print("[" + str(message.author) + "] Resetting...")
         rolled = 0
         roll_stats = True
+        random.seed()
         # prev_call = ""
         await client.change_presence(activity=discord.Game(name='Ready to roll!'))
         await message.add_reaction("👍")
