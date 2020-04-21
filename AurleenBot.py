@@ -52,10 +52,12 @@ def gen_stats_img(save=False):
 
     x = range(1, 21)
     plt.bar(x, d20_stats)
+    plt.hlines(d20_rolled/20, 0.5, 20.5, linestyles='dashed')
     plt.xticks(x)
     plt.xlabel("d20 Value")
     plt.ylabel("Frequency")
     plt.title("Distribution after " + str(d20_rolled) + " d20 rolls")
+    plt.xlim(0.5, len(x) + .5)
     plt.savefig("stats.png")
     # plt.show()
 
@@ -761,7 +763,7 @@ async def on_message(message):
         # Send message to Discord and update status
         await message.channel.send(warning, embed=embed)
         await client.change_presence(activity=discord.Game(name="Rolled " + str(rolled) + " dice"))
-        print(str(time.time() - start) + "sec")
+        print(str(time.time() - start) + "sec; now rolled " + str(rolled) + " dice")
         return
     # end if - Regular dice roll
 
