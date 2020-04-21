@@ -2,6 +2,9 @@
 data.json
 invite.txt
 
+# Ignore most recent stat-image
+stats.png
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

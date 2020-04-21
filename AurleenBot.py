@@ -1,8 +1,11 @@
 import discord
-import random
 import json
 import re
 import time
+from datetime import datetime
+from matplotlib import pyplot as plt
+from numpy import random as np
+import os
 
 # DEBUG
 print("Starting up...")
@@ -12,6 +15,8 @@ client = discord.Client()
 rolled = 0
 roll_stats = True
 prev_call = ""
+d20_stats = [0] * 20
+d20_rolled = 0
 
 # Load data from json file
 try:
@@ -21,18 +26,43 @@ try:
         ADMINS = data['admins']
 except Exception as e:
     print("Error, probably no data.json found: " + str(e))
-
-
 # end try except
 
 
 # Dice rolling function
-def roll(d):
+def roll(d, n=1):
     global rolled
-    rolled += 1
-    return random.randint(1, d)
+    rolled += n
+    return np.randint(low=1, high=d+1, size=n)
+# end def
 
 
+# Print statistics to console
+def print_stats():
+    global d20_stats
+    global d20_rolled
+    print("Rolled " + str(d20_rolled) + "x; " + str(d20_stats))
+# end def
+
+
+# Generate statistics image
+def gen_stats_img(save=False):
+    global d20_stats
+    global d20_rolled
+
+    x = range(1, 21)
+    plt.bar(x, d20_stats)
+    plt.xticks(x)
+    plt.xlabel("d20 Value")
+    plt.ylabel("Frequency")
+    plt.title("Distribution after " + str(d20_rolled) + " d20 rolls")
+    plt.savefig("stats.png")
+    # plt.show()
+
+    if save:
+        cdir = os.curdir
+        plt.savefig(cdir + "/stats/" + str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + ".png")
+    # end if
 # end def
 
 
@@ -66,8 +96,6 @@ def unify_dice(dtype, count):
     # end for
 
     return [new_type, new_count]
-
-
 # end def
 
 
@@ -77,8 +105,7 @@ async def on_ready():
     print('Ready on Discord as {0.user}'.format(client))
     await client.change_presence(activity=discord.Game(name='Ready to roll!'))
     # await client.change_presence(activity=discord.Game(name='Don\'t mind me, just testing the bot!'))
-
-
+    # print_stats()
 # end def
 
 
@@ -90,6 +117,8 @@ async def on_message(message):
     global rolled
     global roll_stats
     global prev_call
+    global d20_stats
+    global d20_rolled
     msg = ""
     add_msg = ""
     title_preset = ""
@@ -118,6 +147,9 @@ async def on_message(message):
     # Let an admin shut down the bot
     if msg.startswith(("!quit", "!stop", "!exit")) and str(message.author) in ADMINS:
         print("[" + str(message.author) + "] Shutting down...")
+        if d20_rolled > 0:
+            gen_stats_img(True)
+        # end if
         await client.change_presence(status=discord.Status.dnd, afk=True, activity=discord.Game(name='OFFLINE'))
         await message.add_reaction("👋")
         await client.close()
@@ -126,9 +158,17 @@ async def on_message(message):
     # Let an admin reset the bot
     if msg.startswith("!reset") and str(message.author) in ADMINS:
         print("[" + str(message.author) + "] Resetting...")
+        if d20_rolled > 0:
+            gen_stats_img(True)
+        # end if
         rolled = 0
         roll_stats = True
-        random.seed()
+        d20_stats = [0] * 20
+        d20_rolled = 0
+        # print(d20_rolled)
+        # print(d20_stats)
+        print_stats()
+        np.seed()
         # prev_call = ""
         await client.change_presence(activity=discord.Game(name='Ready to roll!'))
         await message.add_reaction("👍")
@@ -174,6 +214,27 @@ async def on_message(message):
         # prev_call = ""
         return
     # end if - bot information
+
+    if msg.startswith("!stat"):
+        if d20_rolled > 0:
+            print("[" + str(message.author) + "] Displaying stats")
+            # Print to console
+            print_stats()
+
+            # Generate image
+            gen_stats_img()
+
+            # Send image to Discord
+            await message.channel.send(file=discord.File('stats.png'))
+            return
+        else:
+            print("[" + str(message.author) + "] No stats yet")
+            await message.channel.send(str(message.author.mention) +
+                                       " There are no statistics about d20 rolls to show yet...")
+            # Do not proceed with message processing
+            return
+        # end if/else
+    # end if - statistics
 
     ###########################################################################################################
     # RE-ROLLING
@@ -290,19 +351,19 @@ async def on_message(message):
         footer = ""
         total_result = 0
         max_possible = 20
+        min_possible = 0
 
         # Roll base dice at (dis)advantage
-        d20_1 = roll(20)
-        d20_2 = roll(20)
+        d20s = roll(20, 2)
         if disadvantage:
-            total_result = min(d20_1, d20_2)
+            total_result = min(d20s)
             if total_result == 20:
                 footer = "NATURAL 20"
             elif total_result == 1:
                 footer = "NATURAL 1"
             # end if/elif
         else:
-            total_result = max(d20_1, d20_2)
+            total_result = max(d20s)
             if total_result == 20:
                 footer = "NATURAL 20"
             elif total_result == 1:
@@ -310,55 +371,54 @@ async def on_message(message):
             # end if/elif
         # end if/else
 
+        # Store statistics
+        d20_rolled += 2
+        d20_stats[d20s[0] - 1] += 1
+        d20_stats[d20s[1] - 1] += 1
+        min_possible += 1
+
         # Highlight the selected result
-        if d20_1 == total_result:
-            embed.add_field(name="d20 #1", value="**" + str(d20_1) + "**", inline=True)
+        if d20s[0] == total_result:
+            embed.add_field(name="d20 #1", value="**" + str(d20s[0]) + "**", inline=True)
         else:
-            embed.add_field(name="d20 #2", value=d20_1, inline=True)
+            embed.add_field(name="d20 #1", value=str(d20s[0]), inline=True)
         # end if/else
-        if d20_2 == total_result:
-            embed.add_field(name="d20 #1", value="**" + str(d20_2) + "**", inline=True)
+        if d20s[1] == total_result:
+            embed.add_field(name="d20 #2", value="**" + str(d20s[1]) + "**", inline=True)
         else:
-            embed.add_field(name="d20 #2", value=d20_2, inline=True)
+            embed.add_field(name="d20 #2", value=str(d20s[1]), inline=True)
         # end if/else
 
         # Any other dice rolling
         for i in range(0, len(dice_type)):
-            if abs(dice_count[i]) == 1:
-                # Roll once
-                result = roll(dice_type[i])
+            # Roll all dice of this type at once
+            results = roll(dice_type[i], abs(dice_count[i]))
 
+            for result in results:
+                # Go through all results
                 if dice_count[i] < 0:
+                    # Negative dice modifier
                     embed.add_field(name="-d" + str(dice_type[i]), value="-" + str(result),
                                     inline=True)
 
                     total_result -= result
-                    # max_possible += dice_type[i]
+                    max_possible -= 1
+                    min_possible -= dice_type[i]
                 else:
+                    # Positive dice modifier
                     embed.add_field(name="d" + str(dice_type[i]), value=result, inline=True)
 
                     total_result += result
                     max_possible += dice_type[i]
+                    min_possible += 1
                 # end if/else
-            else:
-                # Roll multiple dice
-                for j in range(abs(dice_count[i])):
-                    result = roll(dice_type[i])
 
-                    if dice_count[i] < 0:
-                        embed.add_field(name="-d" + str(dice_type[i]) + " #" + str(j + 1), value="-" + str(result),
-                                        inline=True)
-
-                        total_result -= result
-                        # max_possible += dice_type[i]
-                    else:
-                        embed.add_field(name="d" + str(dice_type[i]) + " #" + str(j + 1), value=result, inline=True)
-
-                        total_result += result
-                        max_possible += dice_type[i]
-                    # end if/else
-                # end for
-            # end if/else
+                # Add d20 statistics
+                if dice_type[i] == 20:
+                    d20_rolled += 1
+                    d20_stats[result - 1] += 1
+                # end if
+            # end for
         # end for
 
         # Add modifier to calculate total
@@ -368,8 +428,7 @@ async def on_message(message):
 
         total_result += modifier_total
         max_possible += modifier_total
-        min_possible = total_dice_count + modifier_total
-        print(min_possible)
+        min_possible += modifier_total
 
         # Add total to embedding
         embed.add_field(name="Total", value=total_result, inline=False)
@@ -588,11 +647,12 @@ async def on_message(message):
         footer = ""
         total_result = 0
         max_possible = 0
+        min_possible = 0
 
         # Roll base dice
         if dice_type[0] == 20 and dice_count[0] == 1:
             # Start with 1d20, natural 1 or natural 20 can occur
-            result = roll(20)
+            result = roll(20)[0]
             embed.add_field(name="d20", value=result, inline=True)
 
             if result == 20:
@@ -601,55 +661,75 @@ async def on_message(message):
                 footer = "NATURAL 1"
             # end if/elif
 
+            # Add d20 statistics
+            d20_rolled += 1
+            d20_stats[result - 1] += 1
+
             total_result += result
             max_possible += 20
+            min_possible += 1
         else:
-            for j in range(dice_count[0]):
-                result = roll(dice_type[0])
-                embed.add_field(name="d" + str(dice_type[0]) + " #" + str(j + 1), value=result, inline=True)
+            # Roll all dice of base type at once
+            results = roll(dice_type[0], abs(dice_count[0]))
 
-                total_result += result
-                max_possible += dice_type[0]
+            for result in results:
+                # Go through all results
+                if dice_count[0] < 0:
+                    # Negative base dice count
+                    embed.add_field(name="-d" + str(dice_type[0]), value="-" + str(result),
+                                    inline=True)
+
+                    total_result -= result
+                    max_possible -= 1
+                    min_possible -= dice_type[0]
+                else:
+                    # Positive base dice count
+                    embed.add_field(name="d" + str(dice_type[0]), value=result, inline=True)
+
+                    total_result += result
+                    max_possible += dice_type[0]
+                    min_possible += 1
+                # end if/else
+
+                # Add d20 statistics
+                if dice_type[0] == 20:
+                    d20_rolled += 1
+                    d20_stats[result - 1] += 1
+                # end if
             # end for
         # end if/else
 
         # Any other dice rolling
         for i in range(1, len(dice_type)):
-            if abs(dice_count[i]) == 1:
-                # Roll once
-                result = roll(dice_type[i])
+            # Roll all dice of this type at once
+            results = roll(dice_type[i], abs(dice_count[i]))
 
+            for result in results:
+                # Go through all results
                 if dice_count[i] < 0:
+                    # Negative dice modifier
                     embed.add_field(name="-d" + str(dice_type[i]), value="-" + str(result),
                                     inline=True)
 
                     total_result -= result
-                    # max_possible += dice_type[i]
+                    max_possible -= 1
+                    min_possible -= dice_type[i]
+                    print(min_possible)
                 else:
+                    # Positive dice modifier
                     embed.add_field(name="d" + str(dice_type[i]), value=result, inline=True)
 
                     total_result += result
                     max_possible += dice_type[i]
+                    min_possible += 1
                 # end if/else
-            else:
-                # Roll multiple dice
-                for j in range(abs(dice_count[i])):
-                    result = roll(dice_type[i])
 
-                    if dice_count[i] < 0:
-                        embed.add_field(name="-d" + str(dice_type[i]) + " #" + str(j + 1), value="-" + str(result),
-                                        inline=True)
-
-                        total_result -= result
-                        # max_possible += dice_type[i]
-                    else:
-                        embed.add_field(name="d" + str(dice_type[i]) + " #" + str(j + 1), value=result, inline=True)
-
-                        total_result += result
-                        max_possible += dice_type[i]
-                    # end if/else
-                # end for
-            # end if/else
+                # Add d20 statistics
+                if dice_type[i] == 20:
+                    d20_rolled += 1
+                    d20_stats[result - 1] += 1
+                # end if
+            # end for
         # end for
 
         # Add modifier to calculate total
@@ -659,7 +739,7 @@ async def on_message(message):
 
         total_result += modifier_total
         max_possible += modifier_total
-        min_possible = total_dice_count + modifier_total
+        min_possible += modifier_total
 
         # Add total to embedding
         embed.add_field(name="Total", value=total_result, inline=False)
