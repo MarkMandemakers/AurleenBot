@@ -183,10 +183,10 @@ async def on_message(message):
         roll_stats = not roll_stats
         # prev_call = ""
         if roll_stats:
-            print("[" + str(message.author) + "] Turned statistics ON...")
+            print("[" + str(message.author) + "] Turned roll statistics ON...")
             await message.add_reaction("✅")
         else:
-            print("[" + str(message.author) + "] Turned statistics OFF...")
+            print("[" + str(message.author) + "] Turned roll statistics OFF...")
             await message.add_reaction("❎")
         # end if/else
         return
@@ -217,7 +217,8 @@ async def on_message(message):
         return
     # end if - bot information
 
-    if msg.startswith("!stat"):
+    # D20 STATISTICS
+    if msg.startswith("!stat") and str(message.author) in ADMINS:
         if d20_rolled > 0:
             print("[" + str(message.author) + "] Displaying stats")
             # Print to console
@@ -236,7 +237,7 @@ async def on_message(message):
             # Do not proceed with message processing
             return
         # end if/else
-    # end if - statistics
+    # end if - d20 statistics
 
     ###########################################################################################################
     # RE-ROLLING
