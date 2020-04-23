@@ -51,6 +51,7 @@ def gen_stats_img(save=False):
     global d20_rolled
 
     x = range(1, 21)
+    plt.clf()
     plt.bar(x, d20_stats)
     plt.hlines(d20_rolled/20, 0.5, 20.5, linestyles='dashed')
     plt.xticks(x)
