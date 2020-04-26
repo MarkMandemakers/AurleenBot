@@ -1,0 +1,4 @@
+{
+"bot_token": "YOUR_BOT_TOKEN",
+"admins": ["ADMIN_USER_1#XXXX", "ADMIN_USER_2#XXXX"]
+}
