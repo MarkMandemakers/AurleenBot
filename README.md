@@ -30,23 +30,23 @@ The bot could in theory be run using any Python execution method. Before it is r
 
 
 ### Sample Commands
-- **!aurleenbot**
-*Display sample commands like the ones below*
-- **!r1d20**
-*Roll a d20*
-- **!r5d6**
-*Roll five d6 and sum up*
-- **!advantage (!adv) / !disadvantage (!dis)**
-*Roll two d20 and keep the highest or lowest respectively*
-- **!bless / !guidance**
+- **!aurleenbot**  
+  *Display sample commands like the ones below*
+- **!r1d20**  
+  *Roll a d20*
+- **!r5d6**  
+  *Roll five d6 and sum up*
+- **!advantage (!adv) / !disadvantage (!dis)**  
+  *Roll two d20 and keep the highest or lowest respectively*
+- **!bless / !guidance**  
 *Roll a d20 and add a d4, as achieved by the [Bless](https://www.dndbeyond.com/spells/bless) spell*
-- **!bane**
+- **!bane**  
 *Roll a d20 and subtract a d4, as achieved by the [Bane](https://www.dndbeyond.com/spells/bane) spell*
-- **!reroll / !re-roll**
-*Re-Roll the previous roll command (__Note__ the bot re-rolls the last call from anyone, not from the message's author)"*
-- **All commands support modifier dice, e.g. !r1d20+1d4**
+- **!reroll / !re-roll**  
+*Re-Roll the previous roll command (__Note__ the bot re-rolls the last call from anyone, not just the message author)*
+- **All commands support modifier dice, e.g. !r1d20+1d4**  
 *Add + or - your modifier dice to add it to the total of the roll*
-- **All commands also support a modifier, e.g. !r1d20+5 or !r1d20+1d4-2**
+- **All commands also support a modifier, e.g. !r1d20+5 or !r1d20+1d4-2**  
 *Add + or - your modifier to add it to the total of the roll*
 
 
