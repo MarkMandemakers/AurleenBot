@@ -148,7 +148,7 @@ async def on_message(message):
     # ADMIN
     ###########################################################################################################
     # Let an admin shut down the bot
-    if msg.startswith(("!quit", "!stop", "!exit")) and str(message.author) in ADMINS:
+    if str(message.author) in ADMINS and msg.startswith(("!quit", "!stop", "!exit")):
         print("[" + str(message.author) + "] Shutting down...")
         if d20_rolled > 0:
             gen_stats_img(True)
@@ -159,7 +159,7 @@ async def on_message(message):
     # end if - Bot stop
 
     # Let an admin reset the bot
-    if msg.startswith("!reset") and str(message.author) in ADMINS:
+    if str(message.author) in ADMINS and msg.startswith("!reset"):
         print("[" + str(message.author) + "] Resetting...")
         if d20_rolled > 0:
             gen_stats_img(True)
@@ -180,7 +180,7 @@ async def on_message(message):
     # end if - Bot reset
 
     # Let admin toggle "out of" for rolls
-    if msg.startswith("!toggle") and str(message.author) in ADMINS:
+    if str(message.author) in ADMINS and msg.startswith("!toggle"):
         roll_stats = not roll_stats
         # prev_call = ""
         if roll_stats:
@@ -219,7 +219,7 @@ async def on_message(message):
     # end if - bot information
 
     # D20 STATISTICS
-    if msg.startswith("!stat") and str(message.author) in ADMINS:
+    if str(message.author) in ADMINS and msg.startswith("!stat"):
         if d20_rolled > 0:
             print("[" + str(message.author) + "] Displaying stats")
             # Print to console
