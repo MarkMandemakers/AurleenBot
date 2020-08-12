@@ -453,7 +453,7 @@ async def on_message(message):
 
         # Send message to Discord and update status
         await message.channel.send(warning, embed=embed)
-        await client.change_presence(activity=discord.Game(name="Rolled " + str(rolled) + " dice"))
+        # await client.change_presence(activity=discord.Game(name="Rolled " + str(rolled) + " dice"))
         print(str(time.time() - start) + "sec")
         return
     # end if - advantage / disadvantage
@@ -764,7 +764,7 @@ async def on_message(message):
 
         # Send message to Discord and update status
         await message.channel.send(warning, embed=embed)
-        await client.change_presence(activity=discord.Game(name="Rolled " + str(rolled) + " dice"))
+        # await client.change_presence(activity=discord.Game(name="Rolled " + str(rolled) + " dice"))
         print(str(time.time() - start) + "sec; now rolled " + str(rolled) + " dice")
         return
     # end if - Regular dice roll
