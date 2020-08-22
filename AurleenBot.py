@@ -142,6 +142,7 @@ async def on_message(message):
         # Convert message to lowercase and remove spaces for easier processing
         msg = message.content.lower()
         msg = msg.replace(" ", "")
+        print(f"{time.time() - start} sec")
     # end if
 
     ###########################################################################################################
@@ -150,7 +151,7 @@ async def on_message(message):
     # Let an admin shut down the bot
     if str(message.author) in ADMINS and msg.startswith(("!quit", "!stop", "!exit")):
         print("[" + str(message.author) + "] Shutting down...")
-        if d20_rolled > 0:
+        if d20_rolled > 1:
             gen_stats_img(True)
         # end if
         await client.change_presence(status=discord.Status.dnd, afk=True, activity=discord.Game(name='OFFLINE'))
@@ -538,7 +539,6 @@ async def on_message(message):
     # REGULAR DICE ROLLS
     ###########################################################################################################
     if msg.startswith("!r"):
-        prev_call = msg
         # Regex search on message to see what the command is asking for
         # !r(\d+d\d+)       !r1d20 (base dice)
         # !(r*)d\d+         base dice (incorrect command, i.e. !rd20, !d20
@@ -752,6 +752,9 @@ async def on_message(message):
 
         # Add total to embedding
         embed.add_field(name="Total", value=total_result, inline=False)
+
+        # Store message for re-rolling
+        prev_call = msg
 
         # Add stats if wanted
         if roll_stats:
