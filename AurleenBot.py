@@ -483,6 +483,11 @@ async def on_message(message):
         prev_call = msg
     # end if - guidance preset
 
+    # Handle !roll as well as !r
+    if msg.startswith("!roll"):
+        msg = msg.replace("!roll", "!r")
+    # end if - handle !roll
+
     # Handle slight errors in command (e.g. !rd20, !d20)
     if msg.startswith(("!rd", "!d")):
         # Is a dice mentioned in there?
