@@ -17,6 +17,8 @@ roll_stats = True
 prev_call = ""
 d20_stats = [0] * 20
 d20_rolled = 0
+nat20_img = "https://i.imgur.com/5wigsBM.png" # color; blank: https://i.imgur.com/vRMbnn9.png
+nat1_img = "https://i.imgur.com/jfV3bEg.png" # color; blank: https://i.imgur.com/zB9gKje.png
 
 # Load data from json file
 try:
@@ -212,6 +214,8 @@ async def on_message(message):
                         value="Add + or - your modifier dice to add it to the total of the roll", inline=False)
         embed.add_field(name="All commands also support a modifier, e.g. !r1d20+5 or !r1d20+1d4-2",
                         value="Add + or - your modifier to add it to the total of the roll", inline=False)
+        embed.add_field(name="Note: You can also roll privately",
+                        value="Just DM me on Discord", inline=False)
         embed.set_footer(text="pls don't break me")
         await message.channel.send(embed=embed)
         print("[" + str(message.author) + "] Showed info")
@@ -364,19 +368,19 @@ async def on_message(message):
             total_result = min(d20s)
             if total_result == 20:
                 footer = "NATURAL 20"
-                embed.set_thumbnail(url="https://i.imgur.com/vRMbnn9.png")
+                embed.set_thumbnail(url=nat20_img)
             elif total_result == 1:
                 footer = "NATURAL 1"
-                embed.set_thumbnail(url="https://i.imgur.com/zB9gKje.png")
+                embed.set_thumbnail(url=nat1_img)
             # end if/elif
         else:
             total_result = max(d20s)
             if total_result == 20:
                 footer = "NATURAL 20"
-                embed.set_thumbnail(url="https://i.imgur.com/vRMbnn9.png")
+                embed.set_thumbnail(url=nat20_img)
             elif total_result == 1:
                 footer = "NATURAL 1"
-                embed.set_thumbnail(url="https://i.imgur.com/zB9gKje.png")
+                embed.set_thumbnail(url=nat1_img)
             # end if/elif
         # end if/else
 
@@ -679,10 +683,10 @@ async def on_message(message):
 
             if result == 20:
                 footer = "NATURAL 20"
-                embed.set_thumbnail(url="https://i.imgur.com/vRMbnn9.png")
+                embed.set_thumbnail(url=nat20_img)
             elif result == 1:
                 footer = "NATURAL 1"
-                embed.set_thumbnail(url="https://i.imgur.com/zB9gKje.png")
+                embed.set_thumbnail(url=nat1_img)
             # end if/elif
 
             # Add d20 statistics
