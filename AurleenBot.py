@@ -364,15 +364,19 @@ async def on_message(message):
             total_result = min(d20s)
             if total_result == 20:
                 footer = "NATURAL 20"
+                embed.set_thumbnail(url="https://i.imgur.com/vRMbnn9.png")
             elif total_result == 1:
                 footer = "NATURAL 1"
+                embed.set_thumbnail(url="https://i.imgur.com/zB9gKje.png")
             # end if/elif
         else:
             total_result = max(d20s)
             if total_result == 20:
                 footer = "NATURAL 20"
+                embed.set_thumbnail(url="https://i.imgur.com/vRMbnn9.png")
             elif total_result == 1:
                 footer = "NATURAL 1"
+                embed.set_thumbnail(url="https://i.imgur.com/zB9gKje.png")
             # end if/elif
         # end if/else
 
@@ -462,6 +466,15 @@ async def on_message(message):
     ###########################################################################################################
     # PRESETS
     ###########################################################################################################
+
+    # Quick-roll a d20 using !roll
+    if msg == "!roll":
+        # Convert to regular d20
+        msg = "!r1d20"
+        
+        prev_call = msg
+    # end if - quick-roll d20
+
     # Custom presets for 1d20 + 1d4
     if msg.startswith("!bless"):
         # Replace preset with corresponding dice, add comment and continue as normal
@@ -666,8 +679,10 @@ async def on_message(message):
 
             if result == 20:
                 footer = "NATURAL 20"
+                embed.set_thumbnail(url="https://i.imgur.com/vRMbnn9.png")
             elif result == 1:
                 footer = "NATURAL 1"
+                embed.set_thumbnail(url="https://i.imgur.com/zB9gKje.png")
             # end if/elif
 
             # Add d20 statistics
