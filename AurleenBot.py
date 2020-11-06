@@ -251,6 +251,11 @@ async def on_message(message):
         return
     # end if - bot information
 
+    # PING (BOT STATUS)
+    if msg.startswith("!ping"):
+        await message.channel.send("Pong!")
+    # end if - ping
+
     # D20 STATISTICS
     if str(message.author) in ADMINS and msg.startswith("!stat"):
         if d20_rolled > 0:
