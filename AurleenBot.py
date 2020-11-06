@@ -302,7 +302,7 @@ async def on_message(message):
     if msg.startswith(("!adv", "!dis")):
         prev_call = msg
         # Find additional modifier (dice or not)
-        modifier_dice = re.findall('[\+\-]\d*d\d+', msg)
+        modifier_dice = re.findall('[\+\-]r*\d*d\d+', msg)
         modifier = re.findall('[\+\-]\d+(?![d\d])', msg)
 
         # Check if we should roll with advantage or disadvantage
@@ -319,7 +319,7 @@ async def on_message(message):
 
         # Go through all modifier dice and find type/count
         for dice in modifier_dice:
-            dice_split = dice.replace("+", "").split("d")
+            dice_split = dice.replace("+", "").replace("r", "").split("d")
             dice_type.append(int(dice_split[1]))
             dice_count.append(int(dice_split[0]))
         # end for
@@ -598,8 +598,10 @@ async def on_message(message):
         # \-\d+[^d]         negative modifier (no dice)
 
         base_dice = re.findall('!r(\d+d\d+)', msg)
-        modifier_dice = re.findall('[\+\-]\d*d\d+', msg)
+        modifier_dice = re.findall('[\+\-]r*\d*d\d+', msg)
         modifier = re.findall('[\+\-]\d+(?![d\d])', msg)
+
+        # print(f"msg: {msg}\nbase dice: {base_dice}\nmodifier dice: {modifier_dice}\nmodifier: {modifier}")
 
         # Check command format
         if len(base_dice) != 1:
@@ -636,7 +638,7 @@ async def on_message(message):
 
         # Go through all modifier dice and find type/count
         for dice in modifier_dice:
-            dice_split = dice.replace("+", "").split("d")
+            dice_split = dice.replace("+", "").replace("r", "").split("d")
             dice_type.append(int(dice_split[1]))
             dice_count.append(int(dice_split[0]))
         # end for
