@@ -1,6 +1,7 @@
 # Prevent bot data from syncing
 data.json
 invite.txt
+discord.json
 
 # Ignore most recent stat-image
 stats.png

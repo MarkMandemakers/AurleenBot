@@ -19,6 +19,7 @@ d20_stats = [0] * 20
 d20_rolled = 0
 nat20_img = "https://i.imgur.com/5wigsBM.png" # color; blank: https://i.imgur.com/vRMbnn9.png
 nat1_img = "https://i.imgur.com/jfV3bEg.png" # color; blank: https://i.imgur.com/zB9gKje.png
+current_servers = []
 
 # Load data from json file
 try:
@@ -26,8 +27,18 @@ try:
         data = json.load(f)
         BOT_TOKEN = data['bot_token']
         ADMINS = data['admins']
+        f.close()
 except Exception as e:
     print("Error, probably no data.json found: " + str(e))
+# end try except
+
+# Load Discord settings from json file
+try:
+    with open('discord.json') as f2:
+        discord_data = json.load(f2)
+        f2.close()
+except Exception as e:
+    print("Error, probably no discord.json found: " + str(e))
 # end try except
 
 
@@ -107,10 +118,25 @@ def unify_dice(dtype, count):
 # When done setting up the bot user in Discord
 @client.event
 async def on_ready():
-    print('Ready on Discord as {0.user}'.format(client))
+    print(client.guilds)
+    for g in client.guilds:
+        current_servers.append(g.id)
+    # end for
+
+    print(f"Ready on Discord as {client.user}, watching {len(current_servers)} servers")
     await client.change_presence(activity=discord.Game(name='Ready to roll!'))
     # await client.change_presence(activity=discord.Game(name='Don\'t mind me, just testing the bot!'))
     # print_stats()
+# end def
+
+
+# When the bot joins a new server
+@client.event
+async def on_guild_join(guild):
+    print(f"Joined new server: {guild} (id {guild.id})")
+    if guild.id not in current_servers:
+        current_servers.append(guild.id)
+    # end if
 # end def
 
 
@@ -128,6 +154,8 @@ async def on_message(message):
     add_msg = ""
     title_preset = ""
     warning = ""
+
+    print()
 
     # Ignore messages from the bot itself or ones that are no commands
     if message.author == client.user or not message.content.startswith("!"):
