@@ -140,7 +140,7 @@ def update_discord():
 
 # Add server to Discord.json
 def add_server(g):
-    if g.id not in discord_data:
+    if str(g.id) not in discord_data:
         discord_data[g.id] = {}
         discord_data[g.id]['admins'] = []
         discord_data[g.id]['channels'] = []
@@ -156,7 +156,7 @@ def add_server(g):
 async def on_ready():
     print(client.guilds)
     for g in client.guilds:
-        if g.id not in discord_data:
+        if str(g.id) not in discord_data:
             add_server(g)
         # end if
     # end for
@@ -199,7 +199,7 @@ async def on_message(message):
     title_preset = ""
     warning = ""
 
-    print()
+    # print()
 
     # Ignore messages from the bot itself or ones that are no commands
     if message.author == client.user or not message.content.startswith("!"):
@@ -269,6 +269,33 @@ async def on_message(message):
         return
     # end if - toggle
 
+    # Set channel to watch
+    if (str(message.author) in ADMINS or str(message.author) in discord_data[str(message.guild.id)]['admins']) and msg.startswith("!watch"):
+        if message.channel.id in discord_data[str(message.guild.id)]['channels']:
+            await message.channel.send("Already watching this channel. \nType \"!unwatch\" to disable")
+            # await message.add_reaction(":eyes:")
+        else:
+            discord_data[str(message.guild.id)]['channels'].append(message.channel.id)
+            await message.channel.send("Now watching this channel. :eyes:\nType \"!unwatch\" to disable")
+            print(f"Now watching channel \"{message.channel}\" in \"{message.guild}\"")
+        # end if/else
+        update_discord()
+    # end if - watch channel
+
+    # Disable channel to watch
+    if (str(message.author) in ADMINS or str(message.author) in discord_data[str(message.guild.id)]['admins']) and msg.startswith("!unwatch"):
+        if message.channel.id in discord_data[str(message.guild.id)]['channels']:
+            discord_data[str(message.guild.id)]['channels'].remove(message.channel.id)
+            await message.channel.send("Stopped watching this channel. \nType \"!watch\" to enable again")
+            # await message.add_reaction(":eyes:")
+            print(f"Stopped watching channel \"{message.channel}\" in \"{message.guild}\"")
+        else:
+            discord_data[str(message.guild.id)]['channels'].append(message.channel.id)
+            await message.channel.send("Channel is not being watched. \nType \"!watch\" to enable")
+        # end if/else
+        update_discord()
+    # end if - watch channel
+
     ###########################################################################################################
     # BOT INFORMATION
     ###########################################################################################################
@@ -326,7 +353,7 @@ async def on_message(message):
     ###########################################################################################################
     # RE-ROLLING
     ###########################################################################################################
-    if msg.startswith(("!reroll", "!re-roll")):
+    if msg.startswith(("!reroll", "!re-roll")) and (message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
         if prev_call == "":
             # Throw error since there is nothing to re-roll
             print("[" + str(message.content) + "; " + str(message.author) + "] Nothing to re-roll")
@@ -344,7 +371,7 @@ async def on_message(message):
     ###########################################################################################################
     # ROLLING WITH ADVANTAGE/ DISADVANTAGE
     ###########################################################################################################
-    if msg.startswith(("!adv", "!dis")):
+    if msg.startswith(("!adv", "!dis")) and (message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
         prev_call = msg
         # Find additional modifier (dice or not)
         modifier_dice = re.findall('[\+\-]r*\d*d\d+', msg)
@@ -633,7 +660,7 @@ async def on_message(message):
     ###########################################################################################################
     # REGULAR DICE ROLLS
     ###########################################################################################################
-    if msg.startswith("!r"):
+    if msg.startswith("!r") and (message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
         # Regex search on message to see what the command is asking for
         # !r(\d+d\d+)       !r1d20 (base dice)
         # !(r*)d\d+         base dice (incorrect command, i.e. !rd20, !d20
