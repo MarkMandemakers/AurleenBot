@@ -126,6 +126,11 @@ def unify_dice(dtype, count):
 
 # Update Discord.json data
 def update_discord():
+    # Update server name
+    for g in client.guilds:
+        discord_data[str(g.id)]['name'] = g.name
+    # end for
+
     try:
         with open(swd+"discord.json", 'w') as fp:
             json.dump(discord_data, fp, indent=2)
@@ -142,6 +147,7 @@ def update_discord():
 def add_server(g):
     if str(g.id) not in discord_data:
         discord_data[g.id] = {}
+        discord_data[g.id]['name'] = g.name
         discord_data[g.id]['admins'] = []
         discord_data[g.id]['channels'] = []
         discord_data[g.id]['macros'] = {}
@@ -153,8 +159,10 @@ def add_server(g):
 # When done setting up the bot user in Discord
 @client.event
 async def on_ready():
-    print(client.guilds)
+    # print(client.guilds)
+    guild_list = []
     for g in client.guilds:
+        guild_list.append(g.name)
         if str(g.id) not in discord_data:
             add_server(g)
         # end if
@@ -162,7 +170,7 @@ async def on_ready():
 
     update_discord()
 
-    print(f"Ready on Discord as {client.user}, watching {len(discord_data)} servers")
+    print(f"Ready on Discord as {client.user}, watching {len(discord_data)} servers {guild_list}")
     # await client.change_presence(activity=discord.Game(name='Ready to roll!'))
 
     version_info = f"v{ver} ({ver_date})"
@@ -279,6 +287,7 @@ async def on_message(message):
             print(f"Now watching channel \"{message.channel}\" in \"{message.guild}\"")
         # end if/else
         update_discord()
+        return
     # end if - watch channel
 
     # Disable channel to watch
@@ -293,7 +302,9 @@ async def on_message(message):
             await message.channel.send("Channel is not being watched. \nType \"!watch\" to enable")
         # end if/else
         update_discord()
+        return
     # end if - watch channel
+
 
     ###########################################################################################################
     # BOT INFORMATION
