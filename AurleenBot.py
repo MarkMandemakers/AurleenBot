@@ -6,6 +6,7 @@ from datetime import datetime
 from matplotlib import pyplot as plt
 from numpy import random as np
 import os
+import git
 
 # DEBUG
 print("Starting up...")
@@ -20,10 +21,18 @@ d20_rolled = 0
 nat20_img = "https://i.imgur.com/5wigsBM.png" # color; blank: https://i.imgur.com/vRMbnn9.png
 nat1_img = "https://i.imgur.com/jfV3bEg.png" # color; blank: https://i.imgur.com/zB9gKje.png
 current_servers = []
+swd = os.path.dirname(os.getcwd()) + "\AurleenBotSettings\\" # Settings working directory
+
+# Setup version information
+repo = git.Repo(os.curdir)
+lastcommit = repo.head.commit
+ver = len(list(repo.iter_commits('HEAD')))
+commitdate = datetime.fromtimestamp(lastcommit.committed_date)
+ver_date = commitdate.strftime("%d-%m-%Y %H:%M")
 
 # Load data from json file
 try:
-    with open('data.json') as f:
+    with open(swd+'data.json') as f:
         data = json.load(f)
         BOT_TOKEN = data['bot_token']
         ADMINS = data['admins']
@@ -34,7 +43,7 @@ except Exception as e:
 
 # Load Discord settings from json file
 try:
-    with open('discord.json') as f2:
+    with open(swd+'discord.json') as f2:
         discord_data = json.load(f2)
         f2.close()
 except Exception as e:
@@ -115,16 +124,50 @@ def unify_dice(dtype, count):
 # end def
 
 
+# Update Discord.json data
+def update_discord():
+    try:
+        with open(swd+"discord.json", 'w') as fp:
+            json.dump(discord_data, fp, indent=2)
+            fp.close()
+            print("Updated discord.json")
+        # end with
+    except Exception as e:
+        print("Error, probably no data.json found: " + str(e))
+    # end try/except
+# end def
+
+
+# Add server to Discord.json
+def add_server(g):
+    if g.id not in discord_data:
+        discord_data[g.id] = {}
+        discord_data[g.id]['admins'] = []
+        discord_data[g.id]['channels'] = []
+        discord_data[g.id]['names'] = {}
+        discord_data[g.id]['macros'] = {}
+    # end if
+    print(f"Added server {g} to data")
+# end def
+
+
 # When done setting up the bot user in Discord
 @client.event
 async def on_ready():
     print(client.guilds)
     for g in client.guilds:
-        current_servers.append(g.id)
+        if g.id not in discord_data:
+            add_server(g)
+        # end if
     # end for
 
-    print(f"Ready on Discord as {client.user}, watching {len(current_servers)} servers")
-    await client.change_presence(activity=discord.Game(name='Ready to roll!'))
+    update_discord()
+
+    print(f"Ready on Discord as {client.user}, watching {len(discord_data)} servers")
+    # await client.change_presence(activity=discord.Game(name='Ready to roll!'))
+
+    version_info = f"v{ver} ({ver_date})"
+    await client.change_presence(activity=discord.Game(name=version_info)) # Set status to version nr
     # await client.change_presence(activity=discord.Game(name='Don\'t mind me, just testing the bot!'))
     # print_stats()
 # end def
@@ -134,9 +177,10 @@ async def on_ready():
 @client.event
 async def on_guild_join(guild):
     print(f"Joined new server: {guild} (id {guild.id})")
-    if guild.id not in current_servers:
-        current_servers.append(guild.id)
+    if guild.id not in discord_data:
+        add_server(guild)
     # end if
+    update_discord()
 # end def
 
 
@@ -172,7 +216,7 @@ async def on_message(message):
         # Convert message to lowercase and remove spaces for easier processing
         msg = message.content.lower()
         msg = msg.replace(" ", "")
-        print(f"{time.time() - start} sec")
+        # print(f"{time.time() - start} sec")
     # end if
 
     ###########################################################################################################
@@ -184,6 +228,7 @@ async def on_message(message):
         if d20_rolled > 1:
             gen_stats_img(True)
         # end if
+        update_discord()
         await client.change_presence(status=discord.Status.dnd, afk=True, activity=discord.Game(name='OFFLINE'))
         await message.add_reaction("👋")
         await client.close()
@@ -496,7 +541,7 @@ async def on_message(message):
         # Send message to Discord and update status
         await message.channel.send(warning, embed=embed)
         # await client.change_presence(activity=discord.Game(name="Rolled " + str(rolled) + " dice"))
-        print(str(time.time() - start) + "sec")
+        # print(str(time.time() - start) + "sec")
         return
     # end if - advantage / disadvantage
 
