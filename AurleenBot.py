@@ -144,7 +144,6 @@ def add_server(g):
         discord_data[g.id] = {}
         discord_data[g.id]['admins'] = []
         discord_data[g.id]['channels'] = []
-        discord_data[g.id]['names'] = {}
         discord_data[g.id]['macros'] = {}
     # end if
     print(f"Added server {g} to data")
@@ -350,6 +349,8 @@ async def on_message(message):
         # end if/else
     # end if - d20 statistics
 
+
+
     ###########################################################################################################
     # RE-ROLLING
     ###########################################################################################################
@@ -460,7 +461,7 @@ async def on_message(message):
         desc += add_msg
 
         # Setup embedding for dice roll response
-        embed = discord.Embed(title=title_preset + "Rolling for " + str(message.author.name), description=desc,
+        embed = discord.Embed(title=title_preset + "Rolling for " + str(message.author.display_name), description=desc,
                               color=0x76883c)
         footer = ""
         total_result = 0
@@ -775,7 +776,7 @@ async def on_message(message):
         # end if/elif
 
         # Setup embedding for dice roll response
-        embed = discord.Embed(title=title_preset + "Rolling for " + str(message.author.name), description=desc,
+        embed = discord.Embed(title=title_preset + "Rolling for " + str(message.author.display_name), description=desc,
                               color=0x76883c)
         footer = ""
         total_result = 0
