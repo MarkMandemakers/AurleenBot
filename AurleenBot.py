@@ -22,6 +22,8 @@ nat20_img = "https://i.imgur.com/5wigsBM.png" # color; blank: https://i.imgur.co
 nat1_img = "https://i.imgur.com/jfV3bEg.png" # color; blank: https://i.imgur.com/zB9gKje.png
 current_servers = []
 swd = os.path.dirname(os.getcwd()) + "\AurleenBotSettings\\" # Settings working directory
+initiative = {}
+initiative_embed = ""
 
 # Setup version information
 repo = git.Repo(os.curdir)
@@ -146,11 +148,12 @@ def update_discord():
 # Add server to Discord.json
 def add_server(g):
     if str(g.id) not in discord_data:
-        discord_data[g.id] = {}
-        discord_data[g.id]['name'] = g.name
-        discord_data[g.id]['admins'] = []
-        discord_data[g.id]['channels'] = []
-        discord_data[g.id]['macros'] = {}
+        discord_data[str(g.id)] = {}
+        discord_data[str(g.id)]['name'] = g.name
+        discord_data[str(g.id)]['prefix'] = "!"
+        discord_data[str(g.id)]['admins'] = []
+        discord_data[str(g.id)]['channels'] = []
+        discord_data[str(g.id)]['macros'] = {}
     # end if
     print(f"Added server {g} to data")
 # end def
@@ -209,7 +212,7 @@ async def on_message(message):
     # print()
 
     # Ignore messages from the bot itself or ones that are no commands
-    if message.author == client.user or not message.content.startswith("!"):
+    if message.author == client.user or not message.content.startswith(discord_data[str(message.guild.id)]['prefix']):
         return
     # end if
 
@@ -219,7 +222,7 @@ async def on_message(message):
     # end if
 
     # If a command is called, convert message and proceed
-    if message.content.startswith("!"):
+    if message.content.startswith(discord_data[str(message.guild.id)]['prefix']):
         # Convert message to lowercase and remove spaces for easier processing
         msg = message.content.lower()
         msg = msg.replace(" ", "")
@@ -230,7 +233,7 @@ async def on_message(message):
     # ADMIN
     ###########################################################################################################
     # Let an admin shut down the bot
-    if str(message.author) in ADMINS and msg.startswith(("!quit", "!stop", "!exit")):
+    if str(message.author) in ADMINS and msg.startswith((f"{discord_data[str(message.guild.id)]['prefix']}quit", f"{discord_data[str(message.guild.id)]['prefix']}stop", f"{discord_data[str(message.guild.id)]['prefix']}exit")):
         print("[" + str(message.author) + "] Shutting down...")
         if d20_rolled > 1:
             gen_stats_img(True)
@@ -243,7 +246,7 @@ async def on_message(message):
     # end if - Bot stop
 
     # Let an admin reset the bot
-    if str(message.author) in ADMINS and msg.startswith("!reset"):
+    if str(message.author) in ADMINS and msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}reset"):
         print("[" + str(message.author) + "] Resetting...")
         if d20_rolled > 0:
             gen_stats_img(True)
@@ -257,14 +260,14 @@ async def on_message(message):
         print_stats()
         np.seed()
         # prev_call = ""
-        await client.change_presence(activity=discord.Game(name='Ready to roll!'))
+        # await client.change_presence(activity=discord.Game(name='Ready to roll!'))
         await message.add_reaction("👍")
         # await message.add_reaction("✅")
         return
     # end if - Bot reset
 
     # Let admin toggle "out of" for rolls
-    if str(message.author) in ADMINS and msg.startswith("!toggle"):
+    if str(message.author) in ADMINS and msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}toggle"):
         roll_stats = not roll_stats
         # prev_call = ""
         if roll_stats:
@@ -278,13 +281,13 @@ async def on_message(message):
     # end if - toggle
 
     # Set channel to watch
-    if (str(message.author) in ADMINS or str(message.author) in discord_data[str(message.guild.id)]['admins']) and msg.startswith("!watch"):
+    if (str(message.author) in ADMINS or str(message.author) in discord_data[str(message.guild.id)]['admins']) and msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}watch"):
         if message.channel.id in discord_data[str(message.guild.id)]['channels']:
-            await message.channel.send("Already watching this channel. \nType \"!unwatch\" to disable")
+            await message.channel.send(f"Already watching this channel. \nType **{discord_data[str(message.guild.id)]['prefix']}unwatch** to disable")
             # await message.add_reaction(":eyes:")
         else:
             discord_data[str(message.guild.id)]['channels'].append(message.channel.id)
-            await message.channel.send("Now watching this channel. :eyes:\nType \"!unwatch\" to disable")
+            await message.channel.send(f"Now watching this channel. :eyes:\nType **{discord_data[str(message.guild.id)]['prefix']}unwatch** to disable")
             print(f"Now watching channel \"{message.channel}\" in \"{message.guild}\"")
         # end if/else
         update_discord()
@@ -292,38 +295,60 @@ async def on_message(message):
     # end if - watch channel
 
     # Disable channel to watch
-    if (str(message.author) in ADMINS or str(message.author) in discord_data[str(message.guild.id)]['admins']) and msg.startswith("!unwatch"):
+    if (str(message.author) in ADMINS or str(message.author) in discord_data[str(message.guild.id)]['admins']) and msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}unwatch"):
         if message.channel.id in discord_data[str(message.guild.id)]['channels']:
             discord_data[str(message.guild.id)]['channels'].remove(message.channel.id)
-            await message.channel.send("Stopped watching this channel. \nType \"!watch\" to enable again")
+            await message.channel.send(f"Stopped watching this channel. \nType **{discord_data[str(message.guild.id)]['prefix']}watch** to enable again")
             # await message.add_reaction(":eyes:")
             print(f"Stopped watching channel \"{message.channel}\" in \"{message.guild}\"")
         else:
             discord_data[str(message.guild.id)]['channels'].append(message.channel.id)
-            await message.channel.send("Channel is not being watched. \nType \"!watch\" to enable")
+            await message.channel.send(f"Channel is not being watched. \nType **{discord_data[str(message.guild.id)]['prefix']}watch** to enable")
         # end if/else
         update_discord()
         return
     # end if - watch channel
 
+    # Set server prefix
+    if (str(message.author) in ADMINS or str(message.author) in discord_data[str(message.guild.id)]['admins']) and msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}prefix"):
+        command_split = message.content.split(" ")
+
+        if len(command_split) == 2:
+            # Process new prefix
+            if len(command_split[1]) == 1:
+                oldPrefix = discord_data[str(message.guild.id)]['prefix']
+                discord_data[str(message.guild.id)]['prefix'] = command_split[1]
+                update_discord()
+                await message.channel.send(f"Adjusted command prefix from **{oldPrefix}** to **{discord_data[str(message.guild.id)]['prefix']}**")
+                print(f"[{message.author}] Adjusted command prefix from **{oldPrefix}** to **{discord_data[str(message.guild.id)]['prefix']}**")
+            else:
+                # Error
+                await message.channel.send(f"Incorrect prefix format!\nPrefix can only contain one symbol")
+            # end if/else
+        else:
+            # Error
+            await message.channel.send(f"Incorrect command format!\nExpected format is **{discord_data[str(message.guild.id)]['prefix']}prefix newPrefix**")
+        # end if/else
+    # end if - set server prefix
+
 
     ###########################################################################################################
     # BOT INFORMATION
     ###########################################################################################################
-    if msg.startswith(('!help', "!aurleenbot", "!aurleen")):
+    if msg.startswith((f"{discord_data[str(message.guild.id)]['prefix']}help", f"{discord_data[str(message.guild.id)]['prefix']}aurleenbot", f"{discord_data[str(message.guild.id)]['prefix']}aurleen")):
         embed = discord.Embed(title="AurleenBot Sample Commands", color=0x76883c)
-        embed.add_field(name="!r1d20", value="Roll a d20", inline=False)
-        embed.add_field(name="!r5d6", value="Roll five d6 and sum up", inline=False)
-        embed.add_field(name="!advantage (!adv) / !disadvantage (!dis)",
+        embed.add_field(name=f"{discord_data[str(message.guild.id)]['prefix']}r1d20", value="Roll a d20", inline=False)
+        embed.add_field(name=f"{discord_data[str(message.guild.id)]['prefix']}r5d6", value="Roll five d6 and sum up", inline=False)
+        embed.add_field(name=f"{discord_data[str(message.guild.id)]['prefix']}advantage ({discord_data[str(message.guild.id)]['prefix']}adv) / {discord_data[str(message.guild.id)]['prefix']}disadvantage ({discord_data[str(message.guild.id)]['prefix']}dis)",
                         value="Roll two d20 and keep the highest or lowest respectively", inline=False)
-        embed.add_field(name="!bless / !guidance", value="Roll a d20 and a d4", inline=False)
-        embed.add_field(name="!reroll / !re-roll", value="Re-Roll the previous roll command "
+        embed.add_field(name=f"{discord_data[str(message.guild.id)]['prefix']}bless / {discord_data[str(message.guild.id)]['prefix']}guidance", value="Roll a d20 and a d4", inline=False)
+        embed.add_field(name=f"{discord_data[str(message.guild.id)]['prefix']}reroll / {discord_data[str(message.guild.id)]['prefix']}re-roll", value="Re-Roll the previous roll command "
                                                          "\n(__Note__ I re-roll the last call to me from anyone, "
                                                          "not just from you)",
                         inline=False)
-        embed.add_field(name="All commands support modifier dice, e.g. !r1d20+1d4",
+        embed.add_field(name=f"All commands support modifier dice, e.g. {discord_data[str(message.guild.id)]['prefix']}r1d20+1d4",
                         value="Add + or - your modifier dice to add it to the total of the roll", inline=False)
-        embed.add_field(name="All commands also support a modifier, e.g. !r1d20+5 or !r1d20+1d4-2",
+        embed.add_field(name=f"All commands also support a modifier, e.g. {discord_data[str(message.guild.id)]['prefix']}r1d20+5 or {discord_data[str(message.guild.id)]['prefix']}r1d20+1d4-2",
                         value="Add + or - your modifier to add it to the total of the roll", inline=False)
         embed.add_field(name="Note: You can also roll privately",
                         value="Just DM me on Discord", inline=False)
@@ -335,12 +360,12 @@ async def on_message(message):
     # end if - bot information
 
     # PING (BOT STATUS)
-    if msg.startswith("!ping"):
+    if msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}ping"):
         await message.channel.send("Pong!")
     # end if - ping
 
     # D20 STATISTICS
-    if str(message.author) in ADMINS and msg.startswith("!stat"):
+    if str(message.author) in ADMINS and msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}stat"):
         if d20_rolled > 0:
             print("[" + str(message.author) + "] Displaying stats")
             # Print to console
@@ -364,9 +389,57 @@ async def on_message(message):
 
 
     ###########################################################################################################
+    # INITIATIVE TRACKING
+    ###########################################################################################################
+    # Show initiative
+    if msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}init") and (message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
+        command_split = message.content.split(" ")
+        
+        if len(command_split) == 1:         # Only show initiative
+            if not bool(initiative):        # Empty initiative tracker
+                await message.channel.send("No initiative to be tracked yet...")
+            else:
+                initiative_embed = discord.Embed(title="Initiative Tracking", description="", color=0x76883c)
+                # initiative_embed.add_field(name="[5] John\n[6] Bob", value="\u200b", inline=False)
+                initiative_string = ""
+                for i in sorted(initiative.keys()):
+                    if len(initiative[i]) == 1:
+                        initiative_string += f"[{i}] {initiative[i]}\n"
+                    else:
+                        initiative_string += f"[{i}] "
+                        for j in range(len(initiative[i])-1):
+                            initiative_string += f"{initiative[i][j]}, "
+                        # end for
+                        initiative_string += f"{initiative[i][len(initiative[i])]}\n"
+                    # end if/else
+                # end for
+
+                initiative_embed.add_field(name="\u200b", value=initiative_string, inline=False)
+                initiative_embed.set_footer(text=f"Last update: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+
+                await message.channel.send(embed=initiative_embed)
+            # end if/else        
+        else:                   # Add to initiative
+            print(command_split)
+
+            for i in command_split:
+                print(isinstance(i, int))
+            # end for
+        # end if/else
+    # end - initiative tracking
+
+    # Roll initiative
+    # if msg.startswith("!init") and (message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
+    #     command_split = message.content.split(" ")
+    #     print(command_split)
+    # end - initiative tracking
+
+
+
+    ###########################################################################################################
     # RE-ROLLING
     ###########################################################################################################
-    if msg.startswith(("!reroll", "!re-roll")) and (message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
+    if msg.startswith((f"{discord_data[str(message.guild.id)]['prefix']}reroll", f"{discord_data[str(message.guild.id)]['prefix']}re-roll")) and (message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
         if prev_call == "":
             # Throw error since there is nothing to re-roll
             print("[" + str(message.content) + "; " + str(message.author) + "] Nothing to re-roll")
@@ -384,14 +457,14 @@ async def on_message(message):
     ###########################################################################################################
     # ROLLING WITH ADVANTAGE/ DISADVANTAGE
     ###########################################################################################################
-    if msg.startswith(("!adv", "!dis")) and (message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
+    if msg.startswith((f"{discord_data[str(message.guild.id)]['prefix']}adv", f"{discord_data[str(message.guild.id)]['prefix']}dis")) and (message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
         prev_call = msg
         # Find additional modifier (dice or not)
         modifier_dice = re.findall('[\+\-]r*\d*d\d+', msg)
         modifier = re.findall('[\+\-]\d+(?![d\d])', msg)
 
         # Check if we should roll with advantage or disadvantage
-        disadvantage = ("!dis" in msg)
+        disadvantage = (f"{discord_data[str(message.guild.id)]['prefix']}dis" in msg)
 
         # If the format is correct, proceed with message processing
         # Setup variables and get total dice count
@@ -430,7 +503,7 @@ async def on_message(message):
             print("[" + str(message.content) + "; " + str(message.author) + "] No dice left after unifying")
             await message.channel.send(str(message.author.mention) +
                                        " This doesn\'t add up with the number of dice you want to roll.\n"
-                                       "Please use **!help** to see what formats are supported.")
+                                       f"Please use **{discord_data[str(message.guild.id)]['prefix']}help** to see what formats are supported.")
             # Do not proceed with message processing
             return
         elif total_dice_count > 20:
@@ -590,70 +663,70 @@ async def on_message(message):
     ###########################################################################################################
 
     # Quick-roll a d20 using !roll
-    if msg == "!roll":
+    if msg == f"{discord_data[str(message.guild.id)]['prefix']}roll":
         # Convert to regular d20
-        msg = "!r1d20"
+        msg = f"{discord_data[str(message.guild.id)]['prefix']}r1d20"
         
         prev_call = msg
     # end if - quick-roll d20
 
     # Custom presets for 1d20 + 1d4
-    if msg.startswith("!bless"):
+    if msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}bless"):
         # Replace preset with corresponding dice, add comment and continue as normal
-        msg = msg.replace("!bless", "!r1d20+1d4")
+        msg = msg.replace(f"{discord_data[str(message.guild.id)]['prefix']}bless", f"{discord_data[str(message.guild.id)]['prefix']}r1d20+1d4")
         add_msg = "*Bless: +1d4*"
         prev_call = msg
     # end if - bless preset
 
-    if msg.startswith("!guidance"):
+    if msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}guidance"):
         # Replace preset with corresponding dice, add comment and continue as normal
-        msg = msg.replace("!guidance", "!r1d20+1d4")
+        msg = msg.replace(f"{discord_data[str(message.guild.id)]['prefix']}guidance", f"{discord_data[str(message.guild.id)]['prefix']}r1d20+1d4")
         add_msg = "*Guidance: +1d4*"
         prev_call = msg
     # end if - guidance preset
 
-    if msg.startswith("!bane"):
+    if msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}bane"):
         # Replace preset with corresponding dice, add comment and continue as normal
-        msg = msg.replace("!bane", "!r1d20-1d4")
+        msg = msg.replace(f"{discord_data[str(message.guild.id)]['prefix']}bane", f"{discord_data[str(message.guild.id)]['prefix']}r1d20-1d4")
         add_msg = "*Bane: -1d4*"
         prev_call = msg
     # end if - guidance preset
 
     # Handle !roll as well as !r
-    if msg.startswith("!roll"):
-        msg = msg.replace("!roll", "!r")
+    if msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}roll"):
+        msg = msg.replace(f"{discord_data[str(message.guild.id)]['prefix']}roll", f"{discord_data[str(message.guild.id)]['prefix']}r")
     # end if - handle !roll
 
     # Handle slight errors in command (e.g. !rd20, !d20)
-    if msg.startswith(("!rd", "!d")):
+    if msg.startswith((f"{discord_data[str(message.guild.id)]['prefix']}rd", f"{discord_data[str(message.guild.id)]['prefix']}d")):
         # Is a dice mentioned in there?
-        format_dice = re.findall('!r*\d*d\d+', msg)
+        format_dice = re.findall(f'\{discord_data[str(message.guild.id)]["prefix"]}r*\d*d\d+', msg)
         if len(format_dice) > 0:
             # Fix the command
-            msg = msg.replace("!rd", "!r1d")
-            msg = msg.replace("!d", "!r1d")
+            msg = msg.replace(f"{discord_data[str(message.guild.id)]['prefix']}rd", f"{discord_data[str(message.guild.id)]['prefix']}r1d")
+            msg = msg.replace(f"{discord_data[str(message.guild.id)]['prefix']}d", f"{discord_data[str(message.guild.id)]['prefix']}r1d")
 
             # Print warning to console and prepare to add to embedding
             print("[" + str(message.content) + "; " + str(message.author) + "] Incorrect command format")
             if warning == "":
                 warning = message.author.mention + " You did not use the correct format for rolling, " \
                                                    "but I assume you meant `" + str(msg) + "`. " \
-                                                   "\nUse **!help** to see what formats are supported."
+                                                   f"\nUse **{discord_data[str(message.guild.id)]['prefix']}help** to see what formats are supported."
             else:
                 warning += "\nYou did not use the correct format for rolling, " \
                            "but I assume you meant `" + str(msg) + "`. " \
-                           "\nUse **!help** to see what formats are supported."
+                           f"\nUse **{discord_data[str(message.guild.id)]['prefix']}help** to see what formats are supported."
             # end if/else
         # end if
         # Continue using fixed command
     # end if - slight errors in command
 
     # Handle other slight error in command (e.g. !1d20)
-    error_regex = re.findall('!\d+d\d+', msg)
+    error_regex = re.findall(f'\{discord_data[str(message.guild.id)]["prefix"]}\d+d\d+', msg)
     if len(error_regex) > 0:
         # Fix the command
-        msg = msg.replace("!", "!r")
-        error_regex[0].replace("!", "")
+        msg = msg.replace(discord_data[str(message.guild.id)]['prefix'], f"{discord_data[str(message.guild.id)]['prefix']}r")
+        error_regex[0].replace(discord_data[str(message.guild.id)]['prefix'], "")
         error_split = error_regex[0].split("d")
 
         # Print warning to console and prepare to add to embedding
@@ -661,11 +734,11 @@ async def on_message(message):
         if warning == "":
             warning = message.author.mention + " You did not use the correct format for rolling, " \
                                                "but I assume you meant `" + str(msg) + "`. " \
-                                               "\nUse **!help** to see what formats are supported."
+                                               f"\nUse **{discord_data[str(message.guild.id)]['prefix']}help** to see what formats are supported."
         else:
             warning += "\nYou did not use the correct format for rolling, " \
                        "but I assume you meant `" + str(msg) + "`. " \
-                       "\nUse **!help** to see what formats are supported."
+                       f"\nUse **{discord_data[str(message.guild.id)]['prefix']}help** to see what formats are supported."
         # end if/else
         # Continue using fixed command
     # end if - Handle other slight error in command (e.g. !1d20)
@@ -673,7 +746,7 @@ async def on_message(message):
     ###########################################################################################################
     # REGULAR DICE ROLLS
     ###########################################################################################################
-    if msg.startswith("!r") and (message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
+    if msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}r") and (message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
         # Regex search on message to see what the command is asking for
         # !r(\d+d\d+)       !r1d20 (base dice)
         # !(r*)d\d+         base dice (incorrect command, i.e. !rd20, !d20
@@ -682,7 +755,7 @@ async def on_message(message):
         # \+\d+[^d]         positive modifier (no dice)
         # \-\d+[^d]         negative modifier (no dice)
 
-        base_dice = re.findall('!r(\d+d\d+)', msg)
+        base_dice = re.findall(f'\{discord_data[str(message.guild.id)]["prefix"]}r(\d+d\d+)', msg)
         modifier_dice = re.findall('[\+\-]r*\d*d\d+', msg)
         modifier = re.findall('[\+\-]\d+(?![d\d])', msg)
 
@@ -693,7 +766,7 @@ async def on_message(message):
             # No base dice found (or too many), return error message
             print("[" + str(message.content) + "; " + str(message.author) + "] Not correct number of base dice")
             await message.channel.send(str(message.author.mention) + " Something seems to be off with that command.\n"
-                                                                     "Please use **!help** to see what formats are supported.")
+                                                                     f"Please use **{discord_data[str(message.guild.id)]['prefix']}help** to see what formats are supported.")
             # Do not proceed with message processing
             return
         # end if
@@ -750,7 +823,7 @@ async def on_message(message):
             print("[" + str(message.content) + "; " + str(message.author) + "] No dice left after unifying")
             await message.channel.send(str(message.author.mention) +
                                        " This doesn\'t add up with the number of dice you want to roll.\n"
-                                       "Please use **!help** to see what formats are supported.")
+                                       f"Please use **{discord_data[str(message.guild.id)]['prefix']}help** to see what formats are supported.")
             # Do not proceed with message processing
             return
         elif total_dice_count > 20:
