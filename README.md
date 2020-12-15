@@ -21,6 +21,7 @@ AurleenBot was built in Python 3.7.x and requires the following dependencies:
 - [matplotlib](https://matplotlib.org/ )
 - [NumPy](https://numpy.org/ )
 - [os](https://docs.python.org/3/library/os.html )
+- [GitPython](https://gitpython.readthedocs.io/en/stable/)
 
 The bot could in theory be run using any Python execution method. Before it is ready for use, the following is required:
 - Create a application in the [Discord Developer Portal](https://discordapp.com/developers/applications)
