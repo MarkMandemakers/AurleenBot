@@ -9,7 +9,7 @@ import os
 import git
 
 # DEBUG
-print("Starting up...")
+print("Starting up...") # STarting
 
 # Setup global variables
 client = discord.Client()
