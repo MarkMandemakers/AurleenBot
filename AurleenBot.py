@@ -361,7 +361,8 @@ async def on_message(message):
 
     # PING (BOT STATUS)
     if msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}ping"):
-        await message.channel.send("Pong!")
+        await message.channel.send(f"Pong!")
+        print(f"Latency: {client.latency}")
     # end if - ping
 
     # D20 STATISTICS
