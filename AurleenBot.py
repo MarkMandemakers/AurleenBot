@@ -38,6 +38,7 @@ try:
         data = json.load(f)
         BOT_TOKEN = data['bot_token']
         ADMINS = data['admins']
+        PREFIX = data['prefix']
         f.close()
 except Exception as e:
     print("Error, probably no data.json found: " + str(e))
@@ -177,7 +178,8 @@ async def on_ready():
     # await client.change_presence(activity=discord.Game(name='Ready to roll!'))
 
     version_info = f"v{ver} ({ver_date})"
-    await client.change_presence(activity=discord.Game(name=version_info)) # Set status to version nr
+    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=f"{PREFIX}help"))
+    # await client.change_presence(activity=discord.Game(name=version_info)) # Set status to version nr
     # await client.change_presence(activity=discord.Game(name='Don\'t mind me, just testing the bot!'))
     # print_stats()
 # end def
