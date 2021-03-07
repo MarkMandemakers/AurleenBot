@@ -605,15 +605,22 @@ async def on_message(message):
                 # Go through all results
                 if dice_count[i] < 0:
                     # Negative dice modifier
-                    embed.add_field(name="-d" + str(dice_type[i]), value="-" + str(result),
-                                    inline=True)
+                    if result == dice_type[i] or result == 1:
+                        embed.add_field(name="-d" + str(dice_type[i]), value=f"*-{str(result)}*", inline=True)
+                    else:
+                        embed.add_field(name="-d" + str(dice_type[i]), value=f"-{str(result)}", inline=True)
+                    # end if
 
                     total_result -= result
                     max_possible -= 1
                     min_possible -= dice_type[i]
                 else:
                     # Positive dice modifier
-                    embed.add_field(name="d" + str(dice_type[i]), value=result, inline=True)
+                    if result == dice_type[i] or result == 1:
+                        embed.add_field(name="d" + str(dice_type[i]), value=f"*{str(result)}*", inline=True)
+                    else:
+                        embed.add_field(name="d" + str(dice_type[i]), value=result, inline=True)
+                    # end if
 
                     total_result += result
                     max_possible += dice_type[i]
@@ -900,15 +907,22 @@ async def on_message(message):
                 # Go through all results
                 if dice_count[0] < 0:
                     # Negative base dice count
-                    embed.add_field(name="-d" + str(dice_type[0]), value="-" + str(result),
-                                    inline=True)
+                    if result == dice_type[0] or result == 1:
+                        embed.add_field(name="-d" + str(dice_type[0]), value=f"*-{str(result)}*", inline=True)
+                    else:
+                        embed.add_field(name="-d" + str(dice_type[0]), value=f"-{str(result)}", inline=True)
+                    # end if
 
                     total_result -= result
                     max_possible -= 1
                     min_possible -= dice_type[0]
                 else:
                     # Positive base dice count
-                    embed.add_field(name="d" + str(dice_type[0]), value=result, inline=True)
+                    if result == dice_type[0] or result == 1:
+                        embed.add_field(name="d" + str(dice_type[0]), value=f"*{str(result)}*", inline=True)
+                    else:
+                        embed.add_field(name="d" + str(dice_type[0]), value=result, inline=True)
+                    # end if
 
                     total_result += result
                     max_possible += dice_type[0]
@@ -932,8 +946,11 @@ async def on_message(message):
                 # Go through all results
                 if dice_count[i] < 0:
                     # Negative dice modifier
-                    embed.add_field(name="-d" + str(dice_type[i]), value="-" + str(result),
-                                    inline=True)
+                    if result == dice_type[i] or result == 1:
+                        embed.add_field(name="-d" + str(dice_type[i]), value=f"*-{str(result)}*", inline=True)
+                    else:
+                        embed.add_field(name="-d" + str(dice_type[i]), value=f"-{str(result)}", inline=True)
+                    # end if
 
                     total_result -= result
                     max_possible -= 1
@@ -941,7 +958,11 @@ async def on_message(message):
                     print(min_possible)
                 else:
                     # Positive dice modifier
-                    embed.add_field(name="d" + str(dice_type[i]), value=result, inline=True)
+                    if result == dice_type[i] or result == 1:
+                        embed.add_field(name="d" + str(dice_type[i]), value=f"*{str(result)}*", inline=True)
+                    else:
+                        embed.add_field(name="d" + str(dice_type[i]), value=result, inline=True)
+                    # end if
 
                     total_result += result
                     max_possible += dice_type[i]
