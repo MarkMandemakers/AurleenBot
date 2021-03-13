@@ -24,6 +24,9 @@ current_servers = []
 swd = os.path.dirname(os.getcwd()) + "\AurleenBotSettings\\" # Settings working directory
 initiative = {}
 initiative_embed = ""
+ADMINS = ""
+BOT_TOKEN = ""
+PREFIX = ""
 
 # Setup version information
 repo = git.Repo(os.curdir)
@@ -206,6 +209,8 @@ async def on_message(message):
     global prev_call
     global d20_stats
     global d20_rolled
+    global ADMINS
+    global PREFIX
     msg = ""
     add_msg = ""
     title_preset = ""
@@ -365,6 +370,24 @@ async def on_message(message):
     if msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}ping"):
         await message.channel.send(f"Pong!")
         print(f"Latency: {client.latency}")
+        return
+    # end if - ping
+
+    # RELOAD DATA FILES
+    if msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}reload"):
+        # Load data from json file
+        try:
+            with open(swd+'data.json') as f:
+                data = json.load(f)
+                ADMINS = data['admins']
+                PREFIX = data['prefix']
+                f.close()
+        except Exception as e:
+            print("Error, probably no data.json found: " + str(e))
+        # end try except
+        await message.add_reaction("🔄")
+        print("Reloaded data.json")
+        return
     # end if - ping
 
     # D20 STATISTICS
