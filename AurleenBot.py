@@ -11,19 +11,6 @@ import git
 # DEBUG
 print("Starting up...") # STarting
 
-# Load JSON data
-def load_json():
-    try:
-        with open(swd+'data.json') as f:
-            data = json.load(f)
-            ADMINS = data['admins']
-            PREFIX = data['prefix']
-            f.close()
-    except Exception as e:
-        print("Error, probably no data.json found: " + str(e))
-    # end try except
-# end def
-
 # Setup global variables
 client = discord.Client()
 rolled = 0
@@ -40,7 +27,6 @@ initiative_embed = ""
 ADMINS = ""
 BOT_TOKEN = ""
 PREFIX = ""
-
 # Setup version information
 repo = git.Repo(os.curdir)
 lastcommit = repo.head.commit
@@ -49,7 +35,16 @@ commitdate = datetime.fromtimestamp(lastcommit.committed_date)
 ver_date = commitdate.strftime("%d-%m-%Y %H:%M")
 
 # Load data from json file
-load_json()
+try:
+    with open(swd+'data.json') as f:
+        data = json.load(f)
+        BOT_TOKEN = data['bot_token']
+        ADMINS = data['admins']
+        PREFIX = data['prefix']
+        f.close()
+except Exception as e:
+    print("Error, probably no data.json found: " + str(e))
+# end try except
 
 # Load Discord settings from json file
 try:
@@ -164,6 +159,21 @@ def add_server(g):
         discord_data[str(g.id)]['macros'] = {}
     # end if
     print(f"Added server {g} to data")
+# end def
+
+
+# Load JSON data
+def load_json():
+    try:
+        with open(swd+'data.json') as f:
+            data = json.load(f)
+            BOT_TOKEN = data['bot_token']
+            ADMINS = data['admins']
+            PREFIX = data['prefix']
+            f.close()
+    except Exception as e:
+        print("Error, probably no data.json found: " + str(e))
+    # end try except
 # end def
 
 
