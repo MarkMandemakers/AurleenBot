@@ -262,8 +262,8 @@ async def on_message(message):
         update_discord()
         await client.change_presence(status=discord.Status.dnd, afk=True, activity=discord.Game(name='OFFLINE'))
         await message.add_reaction("👋")
-        await client.logout()
-        # await client.close()
+        # await client.logout()
+        await client.close()
     # end if - Bot stop
 
     # Let an admin reset the bot
