@@ -264,6 +264,7 @@ async def on_message(message):
         await message.add_reaction("👋")
         # await client.logout()
         await client.close()
+        time.sleep(1)
     # end if - Bot stop
 
     # Let an admin reset the bot
