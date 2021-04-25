@@ -333,8 +333,9 @@ async def on_message(message):
             update_discord()
             return
         # end if - unwatch channel
+    elif msg.startswith(("quit", "stop", "exit", "reset", "watch", "unwatch")):
+        await message.channel.send(f"{str(message.author.mention)} Sorry, but you are not an admin...")
     # end if - ADMIN COMMANDS
-
 
     ###########################################################################################################
     # BOT INFORMATION
@@ -345,17 +346,22 @@ async def on_message(message):
         embed.add_field(name=f"{PREFIX}r5d6", value="Roll five d6 and sum up", inline=False)
         embed.add_field(name=f"{PREFIX}advantage ({PREFIX}adv) / {PREFIX}disadvantage ({PREFIX}dis)",
                         value="Roll two d20 and keep the highest or lowest respectively", inline=False)
-        embed.add_field(name=f"{PREFIX}bless / {PREFIX}guidance", value="Roll a d20 and a d4", inline=False)
         embed.add_field(name=f"{PREFIX}reroll / {PREFIX}re-roll", value="Re-Roll the previous roll command "
                                                          "\n(__Note__ I re-roll the last call to me from anyone, "
-                                                         "not just from you)",
-                        inline=False)
-        embed.add_field(name=f"All commands support modifier dice, e.g. {PREFIX}r1d20+1d4",
+                                                         "not just from you)\n\u200b\n", inline=False)
+
+        embed.add_field(name=f"Presets:", value="\u200b", inline=False)
+        embed.add_field(name=f"{PREFIX}bless / {PREFIX}guidance", value="Roll a d20 and add a d4", inline=False)
+        embed.add_field(name=f"{PREFIX}bane", value="Roll a d20 and subtract a d4\n\u200b\n", inline=False)
+
+        embed.add_field(name=f"Additions for any command:", value="\u200b", inline=False)
+        embed.add_field(name=f"Dice Modifiers, e.g. {PREFIX}r1d20+1d4",
                         value="Add + or - your modifier dice to add it to the total of the roll", inline=False)
-        embed.add_field(name=f"All commands also support a modifier, e.g. {PREFIX}r1d20+5 or {PREFIX}r1d20+1d4-2",
+        embed.add_field(name=f"Value Modifiers, e.g. {PREFIX}r1d20+5 or {PREFIX}r1d20+1d4-2",
                         value="Add + or - your modifier to add it to the total of the roll", inline=False)
-        embed.add_field(name="Note: You can also roll privately",
-                        value="Just DM me on Discord", inline=False)
+        embed.add_field(name=f"Roll Checks, e.g. {PREFIX}r1d00<=7", value="Supported checks: *>, >=, =, ==, <, <=*", inline=False)
+        embed.add_field(name="Private Rolls:",
+                        value=f"- Add *dm* or *h* to your command to get the result via DM,\ne.g. {PREFIX}dm1d20 or {PREFIX}hadv+6\n- You can also just DM me on Discord", inline=False)
         embed.set_footer(text="pls don't break me")
         await message.channel.send(embed=embed)
         print("[" + str(message.author) + "] Showed info")
