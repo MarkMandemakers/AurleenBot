@@ -465,17 +465,17 @@ async def on_message(message):
     # Check if rolls is equal, greater or less than value
     check_roll = []
     if '>=' in msg:
-        check_roll = ['>=', msg.split('>=')[1]]
+        check_roll = ['>=', int(msg.split('>=')[1])]
     elif '>' in msg:
-        check_roll = ['>', msg.split('>')[1]]
+        check_roll = ['>', int(msg.split('>')[1])]
     elif '<=' in msg:
-        check_roll = ['<=', msg.split('<=')[1]]
+        check_roll = ['<=', int(msg.split('<=')[1])]
     elif '<' in msg:
-        check_roll = ['<', msg.split('<')[1]]
+        check_roll = ['<', int(msg.split('<')[1])]
     elif '==' in msg:
-        check_roll = ['==', msg.split('==')[1]]
+        check_roll = ['==', int(msg.split('==')[1])]
     elif '=' in msg:
-        check_roll = ['==', msg.split('=')[1]]
+        check_roll = ['==', int(msg.split('=')[1])]
     # end if
 
 
@@ -1075,12 +1075,9 @@ async def on_message(message):
         # Add stats of roll
         if footer == "":
             # Footer is empty (so no nat. 1 or 20)
-            embed.set_footer(text="min. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " +
-                                    str(round(
-                                        (total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
+            embed.set_footer(text="min. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " + str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
         else:
-            footer += ("\nmin. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " +
-                        str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
+            footer += ("\nmin. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " + str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
             embed.set_footer(text=footer)
         # end if/else
 
