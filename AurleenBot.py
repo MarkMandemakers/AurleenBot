@@ -14,14 +14,15 @@ print("Starting up...") # STarting
 
 # Setup global variables
 client = discord.Client()
+nat20_img = "https://i.imgur.com/5wigsBM.png" # color; blank: https://i.imgur.com/vRMbnn9.png
+nat1_img = "https://i.imgur.com/jfV3bEg.png" # color; blank: https://i.imgur.com/zB9gKje.png
 rolled = 0
 prev_call = ""
 d20_stats = [0] * 20
 d20_rolled = 0
-nat20_img = "https://i.imgur.com/5wigsBM.png" # color; blank: https://i.imgur.com/vRMbnn9.png
-nat1_img = "https://i.imgur.com/jfV3bEg.png" # color; blank: https://i.imgur.com/zB9gKje.png
 current_servers = []
 cwd = os.getcwd() + "/"
+swd = ""
 initiative = {}
 initiative_embed = ""
 ADMINS = ""
@@ -36,32 +37,62 @@ try:
         if swd[-1] != "/": swd += "/"
         f.close()
 except Exception as e:
-    # If not found, throw error and shut down
+    # If not found, attempt to look in cwd for data.json
     print(f"Error, likely no loc.json found: {e}")
-    sys.exit()
+    print("Looking for data.json in AurleenBot working directory")
 # end try except
 
 # Load data from json file
+data_folder = cwd if swd == "" else swd
 try:
-    with open(swd+'data.json') as f:
+    with open(data_folder+'data.json') as f:
         data = json.load(f)
         BOT_TOKEN = data['bot_token']
         ADMINS = data['admins']
         PREFIX = data['prefix']
         f.close()
 except Exception as e:
-    print("Error, probably no data.json found: " + str(e))
+    print(f"Error, probably no data.json found: {e}")
     sys.exit()
 # end try except
 
 # Load Discord settings from json file
-try:
-    with open(swd+'discord.json') as f2:
-        discord_data = json.load(f2)
-        f2.close()
-except Exception as e:
-    print("Error, probably no discord.json found: " + str(e))
-# end try except
+if os.path.isfile(f"{data_folder}discord.json"):
+    try:
+        with open(swd+'discord.json') as f2:
+            discord_data = json.load(f2)
+            f2.close()
+    except Exception as e:
+        print(f"Error, probably no discord.json found: {e}")
+    # end try except
+else:
+    # If discord.json doesn't exist, create the file
+    try:
+        fp = open(f"{data_folder}discord.json", "x")
+        discord_data = {}
+        fp.close()
+    except Exception as e:
+        print(f"Cannot create discord.json: {e}")
+    # end try except
+# end if
+
+# Update Discord.json data
+def update_discord():
+    # Update server name
+    for g in client.guilds:
+        discord_data[str(g.id)]['name'] = g.name
+    # end for
+
+    try:
+        with open(swd+"discord.json", 'w') as fp:
+            json.dump(discord_data, fp, indent=2)
+            fp.close()
+            print("Updated discord.json")
+        # end with
+    except Exception as e:
+        print("Error, probably no discord.json found: " + str(e))
+    # end try/except
+# end def
 
 
 # Dice rolling function
@@ -136,34 +167,14 @@ def unify_dice(dtype, count):
 # end def
 
 
-# Update Discord.json data
-def update_discord():
-    # Update server name
-    for g in client.guilds:
-        discord_data[str(g.id)]['name'] = g.name
-    # end for
-
-    try:
-        with open(swd+"discord.json", 'w') as fp:
-            json.dump(discord_data, fp, indent=2)
-            fp.close()
-            print("Updated discord.json")
-        # end with
-    except Exception as e:
-        print("Error, probably no data.json found: " + str(e))
-    # end try/except
-# end def
-
-
 # Add server to Discord.json
 def add_server(g):
     if str(g.id) not in discord_data:
         discord_data[str(g.id)] = {}
         discord_data[str(g.id)]['name'] = g.name
-        discord_data[str(g.id)]['prefix'] = "!"
         discord_data[str(g.id)]['admins'] = []
         discord_data[str(g.id)]['channels'] = []
-        discord_data[str(g.id)]['macros'] = {}
+        # discord_data[str(g.id)]['macros'] = {}
     # end if
     print(f"Added server {g} to data")
 # end def
@@ -697,7 +708,7 @@ async def on_message(message):
             embed.title = f"Rolling {desc}: {total_result}"
             embed.description = ""
             # Send DM
-            await message.author.send(warning, embed=embed)
+            await message.author.send(warning, embed=embed)  
         else:
             # Send to server
             await message.channel.send(warning, embed=embed)
