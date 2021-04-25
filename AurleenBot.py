@@ -299,6 +299,10 @@ async def on_message(message):
 
         # Set channel to watch
         if msg.startswith("watch"):
+            if isinstance(message.channel, discord.channel.DMChannel):
+                await message.channel.send(f"Cannot watch a Direct Message Channel...")
+            # end if
+
             if message.channel.id in discord_data[str(message.guild.id)]['channels']:
                 await message.channel.send(f"Already watching this channel. \nType **{PREFIX}unwatch** to disable")
                 # await message.add_reaction(":eyes:")
@@ -313,6 +317,10 @@ async def on_message(message):
 
         # Disable channel to watch
         if msg.startswith("unwatch"):
+            if isinstance(message.channel, discord.channel.DMChannel):
+                await message.channel.send(f"Cannot watch a Direct Message Channel...")
+            # end if
+
             if message.channel.id in discord_data[str(message.guild.id)]['channels']:
                 discord_data[str(message.guild.id)]['channels'].remove(message.channel.id)
                 await message.channel.send(f"Stopped watching this channel. \nType **{PREFIX}watch** to enable again")
@@ -398,7 +406,7 @@ async def on_message(message):
     ###########################################################################################################
     # RE-ROLLING
     ###########################################################################################################
-    if msg.startswith(("reroll", "re-roll")) and (message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
+    if msg.startswith(("reroll", "re-roll")) and (isinstance(message.channel, discord.channel.DMChannel) or message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
         if prev_call == "":
             # Throw error since there is nothing to re-roll
             print("[" + str(message.content) + "; " + str(message.author) + "] Nothing to re-roll")
@@ -431,13 +439,33 @@ async def on_message(message):
 
         dm_roll = True
         # Proceed regular command handling
-    # end if - Regular DM Roll
+    # end if - Hidden/DM Rolls
+
+
+    ###########################################################################################################
+    # CHECK ROLL
+    ###########################################################################################################
+    # Check if rolls is equal, greater or less than value
+    check_roll = []
+    if '>=' in msg:
+        check_roll = ['>=', msg.split('>=')[1]]
+    elif '>' in msg:
+        check_roll = ['>', msg.split('>')[1]]
+    elif '<=' in msg:
+        check_roll = ['<=', msg.split('<=')[1]]
+    elif '<' in msg:
+        check_roll = ['<', msg.split('<')[1]]
+    elif '==' in msg:
+        check_roll = ['==', msg.split('==')[1]]
+    elif '=' in msg:
+        check_roll = ['==', msg.split('=')[1]]
+    # end if
 
 
     ###########################################################################################################
     # ROLLING WITH ADVANTAGE/ DISADVANTAGE
     ###########################################################################################################    
-    if msg.startswith(("adv", "dis")) and (message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
+    if msg.startswith(("adv", "dis")) and (isinstance(message.channel, discord.channel.DMChannel) or message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
         prev_call = msg
         # Find additional modifier (dice or not)
         modifier_dice = re.findall('[\+\-]r*\d*d\d+', msg)
@@ -523,7 +551,11 @@ async def on_message(message):
         elif int(modifier_total) > 0:
             desc += " + " + str(modifier_total)
         # end if/elif
-        desc += add_msg
+
+        # Add to description if we are checking a roll
+        if len(check_roll) > 0:
+            desc += f" {check_roll[0]} {check_roll[1]}"
+        # end if
 
         # Setup embedding for dice roll response
         embed = discord.Embed(title=title_preset + "Rolling for " + str(message.author.display_name), description=desc,
@@ -621,7 +653,24 @@ async def on_message(message):
         max_possible += modifier_total
         min_possible += modifier_total
 
-        # Add total to embedding
+        # Add total to embedding, handle check if needed
+        if len(check_roll) > 0:
+            if eval(f"{total_result}{check_roll[0]}{check_roll[1]}"):
+                # embed.add_field(name="Total", value=f"{total_result} (Success)", inline=False)
+                if footer == "":
+                    footer += "SUCCESS"
+                else:
+                    footer += "\nSUCCESS"
+                # end if
+            else:
+                # embed.add_field(name="Total", value=f"{total_result} (Fail)", inline=False)
+                if footer == "":
+                    footer += "FAIL"
+                else:
+                    footer += "\nFAIL"
+                # end if
+            # end if
+        # end if
         embed.add_field(name="Total", value=total_result, inline=False)
 
         # Add stats of roll
@@ -748,7 +797,7 @@ async def on_message(message):
     # # end if - Regular DM Roll
 
 
-    if msg.startswith("r") and (message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
+    if msg.startswith("r") and (isinstance(message.channel, discord.channel.DMChannel) or message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
         # Regex search on message to see what the command is asking for
         # !r(\d+d\d+)       !r1d20 (base dice)
         # !(r*)d\d+         base dice (incorrect command, i.e. !rd20, !d20
@@ -861,6 +910,11 @@ async def on_message(message):
         elif int(modifier_total) > 0:
             desc += " + " + str(modifier_total)
         # end if/elif
+
+        # Add to description if we are checking a roll
+        if len(check_roll) > 0:
+            desc += f" {check_roll[0]} {check_roll[1]}"
+        # end if
 
         # Setup embedding for dice roll response
         embed = discord.Embed(title=title_preset + "Rolling for " + str(message.author.display_name), description=desc,
@@ -978,7 +1032,24 @@ async def on_message(message):
         max_possible += modifier_total
         min_possible += modifier_total
 
-        # Add total to embedding
+        # Add total to embedding, handle check if needed
+        if len(check_roll) > 0:
+            if eval(f"{total_result}{check_roll[0]}{check_roll[1]}"):
+                # embed.add_field(name="Total", value=f"{total_result} (Success)", inline=False)
+                if footer == "":
+                    footer += "SUCCESS"
+                else:
+                    footer += "\nSUCCESS"
+                # end if
+            else:
+                # embed.add_field(name="Total", value=f"{total_result} (Fail)", inline=False)
+                if footer == "":
+                    footer += "FAIL"
+                else:
+                    footer += "\nFAIL"
+                # end if
+            # end if
+        # end if
         embed.add_field(name="Total", value=total_result, inline=False)
 
         # Store message for re-rolling
