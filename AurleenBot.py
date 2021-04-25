@@ -31,6 +31,7 @@ initiative_embed = ""
 ADMINS = ""
 BOT_TOKEN = ""
 PREFIX = ""
+discord_data = ""
 
 # Load loc.json to find location of settings files
 try:
@@ -185,6 +186,11 @@ def add_server(g):
 
 # Load JSON data
 def load_json():
+    global data
+    global discord_data
+    global BOT_TOKEN
+    global ADMINS
+    global PREFIX
     try:
         with open(swd+'data.json') as f:
             data = json.load(f)
@@ -194,6 +200,13 @@ def load_json():
             f.close()
     except Exception as e:
         print("Error, probably no data.json found: " + str(e))
+    # end try except
+    try:
+        with open(swd+'discord.json') as f:
+            discord_data = json.load(f)
+            f.close()
+    except Exception as e:
+        print("Error, probably no discord.json found: " + str(e))
     # end try except
 # end def
 
@@ -275,7 +288,7 @@ async def on_message(message):
     # ADMIN
     ###########################################################################################################
     # Let an admin shut down the bot
-    if str(message.author) in ADMINS:
+    if str(message.author.id) in ADMINS or (not isinstance(message.channel, discord.channel.DMChannel) and str(message.author.id) in discord_data[str(message.guild.id)]['admins']):
         if msg.startswith(("quit", "stop", "exit")):
             print("[" + str(message.author) + "] Shutting down...")
             if d20_rolled > 1:
@@ -302,14 +315,82 @@ async def on_message(message):
             print_stats()
             np.seed()
 
-            # Load data from json file (same as reload command)
+            # Load data from json files (same as reload command)
             load_json()
-            print("Reloaded data.json")
+            print("Reloaded data.json & discord.json")
             await message.add_reaction("🔄")
             # await message.add_reaction("👍")
             # await message.add_reaction("✅")
             return
         # end if - Bot reset
+
+        # Add or remove admins
+        if msg.startswith("admin"):
+            msg_split = message.content.lower().split(" ")
+            print(msg_split)
+
+            admin_results = ""
+            changes = False
+
+            # Add admin
+            if "add" in msg_split[1]:
+                for m in message.mentions:
+                    if str(m.id) in discord_data[str(message.guild.id)]['admins']:
+                        admin_results += f"**{m.nick}**: Already an admin on this server\n"
+                    else:
+                        discord_data[str(message.guild.id)]['admins'].append(str(m.id))
+                        admin_results += f"**{m.nick}**: Added as admin on this server\n"
+                        changes = True
+                    # end if
+                # end for
+
+                # Send results to Discord and console
+                print(f"[{message.author}] Updating admins on server {message.guild}...\n{admin_results}")
+                await message.channel.send(admin_results)
+            # end if
+
+            # Remove admin
+            if "rem" in msg_split[1]:
+                for m in message.mentions:
+                    if str(m.id) in discord_data[str(message.guild.id)]['admins']:
+                        discord_data[str(message.guild.id)]['admins'].remove(str(m.id))
+                        admin_results += f"**{m.nick}**: Removed as admin on this server\n"
+                        changes = True
+                    else:
+                        admin_results += f"**{m.nick}**: Was no admin on this server already\n"
+                    # end if
+                # end for
+
+                # Send results to Discord and console
+                print(f"[{message.author}] Updating admins on server {message.guild}...\n{admin_results}")
+                await message.channel.send(admin_results)
+            # end if
+
+            # List admins of this server
+            if "list" in msg_split[1]:
+                admin_list = []
+                for a in discord_data[str(message.guild.id)]['admins']:
+                    admin_list.append(await message.guild.fetch_member(int(a)))
+                # end for
+
+                admin_list_msg = "**Admins on this server:**"
+                for a in admin_list:
+                    if a.nick == None:
+                        admin_list_msg += f"\n{a.name}"
+                    else:
+                        admin_list_msg += f"\n{a.nick}"
+                    # end if
+                # end for
+
+                # Send results to Discord and console
+                print(f"[{message.author}] Listed admins on server {message.guild}...\n{[a.nick for a in admin_list]}")
+                await message.channel.send(admin_list_msg)
+            # end if
+
+            # Update discord.json with new data
+            if changes: update_discord()    
+            return
+        # end if - add/remove admins
 
         # Set channel to watch
         if msg.startswith("watch"):
@@ -347,7 +428,30 @@ async def on_message(message):
             update_discord()
             return
         # end if - unwatch channel
-    elif msg.startswith(("quit", "stop", "exit", "reset", "watch", "unwatch")):
+
+        # D20 STATISTICS
+        if msg.startswith("stat"):
+            if d20_rolled > 0:
+                print("[" + str(message.author) + "] Displaying stats")
+                # Print to console
+                print_stats()
+
+                # Generate image
+                gen_stats_img()
+
+                # Send image to Discord
+                await message.channel.send(file=discord.File('stats.png'))
+                return
+            else:
+                print("[" + str(message.author) + "] No stats yet")
+                await message.channel.send(str(message.author.mention) +
+                                        " There are no statistics about d20 rolls to show yet...")
+                # Do not proceed with message processing
+                return
+            # end if/else
+        # end if - d20 statistics
+
+    elif msg.startswith(("quit", "stop", "exit", "reset", "watch", "unwatch", "stat", "admin")):
         await message.channel.send(f"{str(message.author.mention)} Sorry, but you are not an admin...")
     # end if - ADMIN COMMANDS
 
@@ -390,34 +494,24 @@ async def on_message(message):
 
     # RELOAD DATA FILES
     if msg.startswith("reload"):
-        # Load data from json file
+        # Load data from json files
         load_json()
         await message.add_reaction("🔄")
-        print("Reloaded data.json")
+        print("Reloaded data.json & discord.json")
         return
-    # end if - ping
+    # end if - reload
 
-    # D20 STATISTICS
-    if str(message.author) in ADMINS and msg.startswith("stat"):
-        if d20_rolled > 0:
-            print("[" + str(message.author) + "] Displaying stats")
-            # Print to console
-            print_stats()
-
-            # Generate image
-            gen_stats_img()
-
-            # Send image to Discord
-            await message.channel.send(file=discord.File('stats.png'))
-            return
+    # GET ID OF USER
+    if msg.startswith("id"):
+        if len(message.mentions) > 0:
+            for m in message.mentions:
+                print(f"ID of user {m.name}#{m.discriminator}: {m.id}")
+            # end for
         else:
-            print("[" + str(message.author) + "] No stats yet")
-            await message.channel.send(str(message.author.mention) +
-                                       " There are no statistics about d20 rolls to show yet...")
-            # Do not proceed with message processing
-            return
-        # end if/else
-    # end if - d20 statistics
+            print(f"ID of user {message.author}: {message.author.id}")
+        # end if
+        return
+    # end if
 
 
 
