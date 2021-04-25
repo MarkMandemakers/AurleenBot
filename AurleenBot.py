@@ -6,7 +6,8 @@ from datetime import datetime
 from matplotlib import pyplot as plt
 from numpy import random as np
 import os
-import git
+import sys
+# import git
 
 # DEBUG
 print("Starting up...") # STarting
@@ -21,18 +22,32 @@ d20_rolled = 0
 nat20_img = "https://i.imgur.com/5wigsBM.png" # color; blank: https://i.imgur.com/vRMbnn9.png
 nat1_img = "https://i.imgur.com/jfV3bEg.png" # color; blank: https://i.imgur.com/zB9gKje.png
 current_servers = []
-swd = os.path.dirname(os.getcwd()) + "\AurleenBotSettings\\" # Settings working directory
+cwd = os.getcwd() + "/"
+# swd = f"{cwd}\AurleenBotSettings\\" # Settings working directory
 initiative = {}
 initiative_embed = ""
 ADMINS = ""
 BOT_TOKEN = ""
 PREFIX = ""
 # Setup version information
-repo = git.Repo(os.curdir)
-lastcommit = repo.head.commit
-ver = len(list(repo.iter_commits('HEAD')))
-commitdate = datetime.fromtimestamp(lastcommit.committed_date)
-ver_date = commitdate.strftime("%d-%m-%Y %H:%M")
+# repo = git.Repo(os.curdir)
+# lastcommit = repo.head.commit
+# ver = len(list(repo.iter_commits('HEAD')))
+# commitdate = datetime.fromtimestamp(lastcommit.committed_date)
+# ver_date = commitdate.strftime("%d-%m-%Y %H:%M")
+
+# Load loc.json to find location of settings files
+try:
+    with open(cwd+'loc.json') as f:
+        loc = json.load(f)
+        swd = loc['swd']
+        if swd[-1] != "/": swd += "/"
+        f.close()
+except Exception as e:
+    # If not found, throw error and shut down
+    print(f"Error, likely no loc.json found: {e}")
+    sys.exit()
+# end try except
 
 # Load data from json file
 try:
@@ -194,7 +209,7 @@ async def on_ready():
     print(f"Ready on Discord as {client.user}, watching {len(discord_data)} servers {guild_list}")
     # await client.change_presence(activity=discord.Game(name='Ready to roll!'))
 
-    version_info = f"v{ver} ({ver_date})"
+    # version_info = f"v{ver} ({ver_date})"
     await client.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=f"{PREFIX}help"))
     # await client.change_presence(activity=discord.Game(name=version_info)) # Set status to version nr
     # await client.change_presence(activity=discord.Game(name='Don\'t mind me, just testing the bot!'))
@@ -254,109 +269,108 @@ async def on_message(message):
     # ADMIN
     ###########################################################################################################
     # Let an admin shut down the bot
-    if str(message.author) in ADMINS and msg.startswith((f"{discord_data[str(message.guild.id)]['prefix']}quit", f"{discord_data[str(message.guild.id)]['prefix']}stop", f"{discord_data[str(message.guild.id)]['prefix']}exit")):
-        print("[" + str(message.author) + "] Shutting down...")
-        if d20_rolled > 1:
-            gen_stats_img(True)
-        # end if
-        update_discord()
-        await client.change_presence(status=discord.Status.dnd, afk=True, activity=discord.Game(name='OFFLINE'))
-        await message.add_reaction("👋")
-        # await client.logout()
-        await client.close()
-        time.sleep(1)
-    # end if - Bot stop
+    if str(message.author) in ADMINS:
+        if msg.startswith((f"{discord_data[str(message.guild.id)]['prefix']}quit", f"{discord_data[str(message.guild.id)]['prefix']}stop", f"{discord_data[str(message.guild.id)]['prefix']}exit")):
+            print("[" + str(message.author) + "] Shutting down...")
+            if d20_rolled > 1:
+                gen_stats_img(True)
+            # end if
+            update_discord()
+            await client.change_presence(status=discord.Status.dnd, afk=True, activity=discord.Game(name='OFFLINE'))
+            await message.add_reaction("👋")
+            await client.close()
+            time.sleep(1)
+        # end if - Bot stop
 
-    # Let an admin reset the bot
-    if str(message.author) in ADMINS and msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}reset"):
-        print("[" + str(message.author) + "] Resetting...")
-        if d20_rolled > 0:
-            gen_stats_img(True)
-        # end if
-        rolled = 0
-        roll_stats = True
-        d20_stats = [0] * 20
-        d20_rolled = 0
-        # print(d20_rolled)
-        # print(d20_stats)
-        print_stats()
-        np.seed()
-        # prev_call = ""
-        # await client.change_presence(activity=discord.Game(name='Ready to roll!'))
+        # Let an admin reset the bot
+        if msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}reset"):
+            print("[" + str(message.author) + "] Resetting...")
+            if d20_rolled > 0:
+                gen_stats_img(True)
+            # end if
+            rolled = 0
+            roll_stats = True
+            d20_stats = [0] * 20
+            d20_rolled = 0
+            # print(d20_rolled)
+            # print(d20_stats)
+            print_stats()
+            np.seed()
 
-        # Load data from json file (same as reload command)
-        load_json()
-        print("Reloaded data.json")
-        await message.add_reaction("🔄")
-        # await message.add_reaction("👍")
-        # await message.add_reaction("✅")
-        return
-    # end if - Bot reset
+            # Load data from json file (same as reload command)
+            load_json()
+            print("Reloaded data.json")
+            await message.add_reaction("🔄")
+            # await message.add_reaction("👍")
+            # await message.add_reaction("✅")
+            return
+        # end if - Bot reset
 
-    # Let admin toggle "out of" for rolls
-    if str(message.author) in ADMINS and msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}toggle"):
-        roll_stats = not roll_stats
-        # prev_call = ""
-        if roll_stats:
-            print("[" + str(message.author) + "] Turned roll statistics ON...")
-            await message.add_reaction("✅")
-        else:
-            print("[" + str(message.author) + "] Turned roll statistics OFF...")
-            await message.add_reaction("❎")
-        # end if/else
-        return
-    # end if - toggle
+        # Let admin toggle "out of" for rolls
+        if msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}toggle"):
+            roll_stats = not roll_stats
+            # prev_call = ""
+            if roll_stats:
+                print("[" + str(message.author) + "] Turned roll statistics ON...")
+                await message.add_reaction("✅")
+            else:
+                print("[" + str(message.author) + "] Turned roll statistics OFF...")
+                await message.add_reaction("❎")
+            # end if/else
+            return
+        # end if - toggle
 
-    # Set channel to watch
-    if (str(message.author) in ADMINS or str(message.author) in discord_data[str(message.guild.id)]['admins']) and msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}watch"):
-        if message.channel.id in discord_data[str(message.guild.id)]['channels']:
-            await message.channel.send(f"Already watching this channel. \nType **{discord_data[str(message.guild.id)]['prefix']}unwatch** to disable")
-            # await message.add_reaction(":eyes:")
-        else:
-            discord_data[str(message.guild.id)]['channels'].append(message.channel.id)
-            await message.channel.send(f"Now watching this channel. :eyes:\nType **{discord_data[str(message.guild.id)]['prefix']}unwatch** to disable")
-            print(f"Now watching channel \"{message.channel}\" in \"{message.guild}\"")
-        # end if/else
-        update_discord()
-        return
-    # end if - watch channel
+        # Set channel to watch
+        if msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}watch"):
+            if message.channel.id in discord_data[str(message.guild.id)]['channels']:
+                await message.channel.send(f"Already watching this channel. \nType **{discord_data[str(message.guild.id)]['prefix']}unwatch** to disable")
+                # await message.add_reaction(":eyes:")
+            else:
+                discord_data[str(message.guild.id)]['channels'].append(message.channel.id)
+                await message.channel.send(f"Now watching this channel. :eyes:\nType **{discord_data[str(message.guild.id)]['prefix']}unwatch** to disable")
+                print(f"Now watching channel \"{message.channel}\" in \"{message.guild}\"")
+            # end if/else
+            update_discord()
+            return
+        # end if - watch channel
 
-    # Disable channel to watch
-    if (str(message.author) in ADMINS or str(message.author) in discord_data[str(message.guild.id)]['admins']) and msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}unwatch"):
-        if message.channel.id in discord_data[str(message.guild.id)]['channels']:
-            discord_data[str(message.guild.id)]['channels'].remove(message.channel.id)
-            await message.channel.send(f"Stopped watching this channel. \nType **{discord_data[str(message.guild.id)]['prefix']}watch** to enable again")
-            # await message.add_reaction(":eyes:")
-            print(f"Stopped watching channel \"{message.channel}\" in \"{message.guild}\"")
-        else:
-            discord_data[str(message.guild.id)]['channels'].append(message.channel.id)
-            await message.channel.send(f"Channel is not being watched. \nType **{discord_data[str(message.guild.id)]['prefix']}watch** to enable")
-        # end if/else
-        update_discord()
-        return
-    # end if - watch channel
+        # Disable channel to watch
+        if msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}unwatch"):
+            if message.channel.id in discord_data[str(message.guild.id)]['channels']:
+                discord_data[str(message.guild.id)]['channels'].remove(message.channel.id)
+                await message.channel.send(f"Stopped watching this channel. \nType **{discord_data[str(message.guild.id)]['prefix']}watch** to enable again")
+                # await message.add_reaction(":eyes:")
+                print(f"Stopped watching channel \"{message.channel}\" in \"{message.guild}\"")
+            else:
+                discord_data[str(message.guild.id)]['channels'].append(message.channel.id)
+                await message.channel.send(f"Channel is not being watched. \nType **{discord_data[str(message.guild.id)]['prefix']}watch** to enable")
+            # end if/else
+            update_discord()
+            return
+        # end if - unwatch channel
 
-    # Set server prefix
-    if (str(message.author) in ADMINS or str(message.author) in discord_data[str(message.guild.id)]['admins']) and msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}prefix"):
-        command_split = message.content.split(" ")
+        # Set server prefix
+        if msg.startswith(f"{discord_data[str(message.guild.id)]['prefix']}prefix"):
+            command_split = message.content.split(" ")
 
-        if len(command_split) == 2:
-            # Process new prefix
-            if len(command_split[1]) == 1:
-                oldPrefix = discord_data[str(message.guild.id)]['prefix']
-                discord_data[str(message.guild.id)]['prefix'] = command_split[1]
-                update_discord()
-                await message.channel.send(f"Adjusted command prefix from **{oldPrefix}** to **{discord_data[str(message.guild.id)]['prefix']}**")
-                print(f"[{message.author}] Adjusted command prefix from **{oldPrefix}** to **{discord_data[str(message.guild.id)]['prefix']}**")
+            if len(command_split) == 2:
+                # Process new prefix
+                if len(command_split[1]) == 1:
+                    oldPrefix = discord_data[str(message.guild.id)]['prefix']
+                    discord_data[str(message.guild.id)]['prefix'] = command_split[1]
+                    update_discord()
+                    await message.channel.send(f"Adjusted command prefix from **{oldPrefix}** to **{discord_data[str(message.guild.id)]['prefix']}**")
+                    print(f"[{message.author}] Adjusted command prefix from **{oldPrefix}** to **{discord_data[str(message.guild.id)]['prefix']}**")
+                else:
+                    # Error
+                    await message.channel.send(f"Incorrect prefix format!\nPrefix can only contain one symbol")
+                # end if/else
             else:
                 # Error
-                await message.channel.send(f"Incorrect prefix format!\nPrefix can only contain one symbol")
+                await message.channel.send(f"Incorrect command format!\nExpected format is **{discord_data[str(message.guild.id)]['prefix']}prefix newPrefix**")
             # end if/else
-        else:
-            # Error
-            await message.channel.send(f"Incorrect command format!\nExpected format is **{discord_data[str(message.guild.id)]['prefix']}prefix newPrefix**")
-        # end if/else
-    # end if - set server prefix
+        # end if - set server prefix
+    # end if - ADMINS
 
 
     ###########################################################################################################

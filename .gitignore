@@ -2,6 +2,7 @@
 data.json
 invite.txt
 discord.json
+loc.json
 
 # Ignore most recent stat-image
 stats.png
