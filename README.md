@@ -5,6 +5,7 @@ AurleenBot is a Discord bot for dice rolling in (digital) D&D Games.
 ### Features
 - Roll any type of dice
 - Roll multiple dice (types) at once, either regularly or at (dis)advantage
+- Roll up to 100 dice at once (by default), since this could be useful in some cases. Looking at you [Meteor Swarm](https://www.dndbeyond.com/spells/meteor-swarm)...
 - Add modifier values with inline math
 - Check if rolls pass a certain threshold
 - Private rolls with results via Discord DM
