@@ -98,8 +98,7 @@ def gen_stats_img(save=False):
     # plt.show()
 
     if save:
-        cdir = os.curdir
-        plt.savefig(cdir + "/stats/" + str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + ".png")
+        plt.savefig(f"{swd}stats/{str(datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))}.png")
     # end if
 # end def
 
@@ -416,8 +415,28 @@ async def on_message(message):
 
 
     ###########################################################################################################
-    # ROLLING WITH ADVANTAGE/ DISADVANTAGE
+    # HIDDEN / DM ROLLS
     ###########################################################################################################
+    dm_roll = False
+    if msg.startswith(("dm", "h")):
+        # Replace whole command up until first integer (expected: dice count) or +/- with "regular roll"
+        cmd_split_index = re.search('[\+\-\d]', msg)
+        if "dis" in msg: 
+            msg = msg.replace(msg[:cmd_split_index.start()], "dis")
+        elif "adv" in msg:
+            msg = msg.replace(msg[:cmd_split_index.start()], "adv")
+        else:
+            msg = msg.replace(msg[:cmd_split_index.start()], "r")
+        # end if
+
+        dm_roll = True
+        # Proceed regular command handling
+    # end if - Regular DM Roll
+
+
+    ###########################################################################################################
+    # ROLLING WITH ADVANTAGE/ DISADVANTAGE
+    ###########################################################################################################    
     if msg.startswith(("adv", "dis")) and (message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
         prev_call = msg
         # Find additional modifier (dice or not)
@@ -616,9 +635,18 @@ async def on_message(message):
                         str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
             embed.set_footer(text=footer)
         # end if/else
-
-        # Send message to Discord and update status
-        await message.channel.send(warning, embed=embed)
+        
+        # Send message to Discord or DM and update status
+        if dm_roll:
+            # Adjust title to see it in notification
+            embed.title = f"Rolling {desc}: {total_result}"
+            embed.description = ""
+            # Send DM
+            await message.author.send(warning, embed=embed)
+        else:
+            # Send to server
+            await message.channel.send(warning, embed=embed)
+        # end if
         # await client.change_presence(activity=discord.Game(name="Rolled " + str(rolled) + " dice"))
         # print(str(time.time() - start) + "sec")
         return
@@ -703,10 +731,23 @@ async def on_message(message):
         # end if/else
         # Continue using fixed command
     # end if - Handle other slight error in command (e.g. !1d20)
+    
 
     ###########################################################################################################
     # REGULAR DICE ROLLS
     ###########################################################################################################
+    # # Send a DM with roll result instead of in server
+    # dm_roll = False
+    # if msg.startswith(("dm", "h")) and (message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
+    #     # Replace whole command up until first integer (expected: dice count) with "regular roll"
+    #     cmd_split_index = re.search('\d', msg)
+    #     msg = msg.replace(msg[:cmd_split_index.start()], "r")
+
+    #     dm_roll = True
+    #     # Proceed regular command handling
+    # # end if - Regular DM Roll
+
+
     if msg.startswith("r") and (message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
         # Regex search on message to see what the command is asking for
         # !r(\d+d\d+)       !r1d20 (base dice)
@@ -806,7 +847,7 @@ async def on_message(message):
         # end if/elif
 
         # Create roll description
-        desc = add_msg + "\n"
+        desc = add_msg + "\n" if add_msg != "" else ""
         desc += str(dice_count[0]) + "d" + str(dice_type[0])
         for i in range(1, len(dice_type)):
             if int(dice_count[i]) < 0:
@@ -955,8 +996,18 @@ async def on_message(message):
             embed.set_footer(text=footer)
         # end if/else
 
-        # Send message to Discord and update status
-        await message.channel.send(warning, embed=embed)
+        # Send message to Discord or DM and update status
+        if dm_roll:
+            # Adjust title to see it in notification
+            embed.title = f"Rolling {desc}: {total_result}"
+            embed.description = ""
+            # Send DM
+            await message.author.send(warning, embed=embed)
+            await message.add_reaction("🎲")
+        else:
+            # Send to server
+            await message.channel.send(warning, embed=embed)
+        # end if
         # await client.change_presence(activity=discord.Game(name="Rolled " + str(rolled) + " dice"))
         print(str(time.time() - start) + "sec; now rolled " + str(rolled) + " dice")
         return
