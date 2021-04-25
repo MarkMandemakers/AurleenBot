@@ -17,7 +17,7 @@ AurleenBot is a Discord bot for dice rolling in (digital) D&D Games.
 
 ### Installation & Usage
 AurleenBot was built in Python 3.7.x and requires the following dependencies:
-- [discord.py](https://github.com/Rapptz/discord.py )
+- [discord.py](https://github.com/Rapptz/discord.py ) (built on version 1.4.1)
 - [json](https://docs.python.org/3/library/json.html )
 - [re](https://docs.python.org/3/library/re.html )
 - [time](https://docs.python.org/3/library/time.html )
@@ -26,6 +26,7 @@ AurleenBot was built in Python 3.7.x and requires the following dependencies:
 - [NumPy](https://numpy.org/ )
 - [os](https://docs.python.org/3/library/os.html )
 - [sys](https://docs.python.org/3/library/sys.html )
+- [math](https://docs.python.org/3/library/math.html )
 
 The bot could in theory be run using any Python execution method. Before it is ready for use, the following is required:
 - Create a application in the [Discord Developer Portal](https://discordapp.com/developers/applications)
@@ -42,11 +43,11 @@ The bot could in theory be run using any Python execution method. Before it is r
 - **!r1d20**  
   *Roll a d20*
 - **!r5d6**  
-  *Roll five d6 and sum up*
+  *Roll five d6 and sum up (__Note__ There is a limit on the number of dice that can be rolled at once; by default this is 100 but can be changed in the Python file)*
 - **!advantage (!adv) / !disadvantage (!dis)**  
   *Roll two d20 and keep the highest or lowest respectively*
 - **!reroll / !re-roll**  
-  *Re-Roll the previous roll command (__Note__ the bot re-rolls the last call from anyone, not just the message author)*
+  *Re-Roll the previous roll command (__Note__ The bot re-rolls the last call from anyone, not just the message author)*
   
 ### Presets
 - **!bless / !guidance**  

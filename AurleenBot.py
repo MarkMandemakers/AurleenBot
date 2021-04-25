@@ -7,6 +7,7 @@ from matplotlib import pyplot as plt
 from numpy import random as np
 import os
 import sys
+import math
 # import git
 
 # DEBUG
@@ -21,6 +22,8 @@ prev_call = ""
 d20_stats = [0] * 20
 d20_rolled = 0
 current_servers = []
+field_limit = 21 
+total_dice_limit = 100
 cwd = os.getcwd() + "/"
 swd = ""
 initiative = {}
@@ -354,12 +357,10 @@ async def on_message(message):
     if msg.startswith(("help", "aurleen")):
         embed = discord.Embed(title="AurleenBot Sample Commands", color=0x76883c)
         embed.add_field(name=f"{PREFIX}r1d20", value="Roll a d20", inline=False)
-        embed.add_field(name=f"{PREFIX}r5d6", value="Roll five d6 and sum up", inline=False)
+        embed.add_field(name=f"{PREFIX}r5d6", value=f"Roll five d6 and sum up\n(__Note__ Up to {total_dice_limit} dice can be rolled at once)", inline=False)
         embed.add_field(name=f"{PREFIX}advantage ({PREFIX}adv) / {PREFIX}disadvantage ({PREFIX}dis)",
                         value="Roll two d20 and keep the highest or lowest respectively", inline=False)
-        embed.add_field(name=f"{PREFIX}reroll / {PREFIX}re-roll", value="Re-Roll the previous roll command "
-                                                         "\n(__Note__ I re-roll the last call to me from anyone, "
-                                                         "not just from you)\n\u200b\n", inline=False)
+        embed.add_field(name=f"{PREFIX}reroll / {PREFIX}re-roll", value="Re-Roll the previous roll command\n(__Note__ I re-roll the last call to me from anyone, not just from you)\n\u200b\n", inline=False)
 
         embed.add_field(name=f"Presets:", value="\u200b", inline=False)
         embed.add_field(name=f"{PREFIX}bless / {PREFIX}guidance", value="Roll a d20 and add a d4", inline=False)
@@ -480,7 +481,7 @@ async def on_message(message):
 
 
     ###########################################################################################################
-    # ROLLING WITH ADVANTAGE/ DISADVANTAGE
+    # ROLLING WITH ADVANTAGE / DISADVANTAGE
     ###########################################################################################################    
     if msg.startswith(("adv", "dis")) and (isinstance(message.channel, discord.channel.DMChannel) or message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
         prev_call = msg
@@ -531,22 +532,12 @@ async def on_message(message):
                                        f"Please use **{PREFIX}help** to see what formats are supported.")
             # Do not proceed with message processing
             return
-        elif total_dice_count > 20:
-            # if len(dice_type) == 1:
-            #     # No modifier dice
-            #     dice_count[0] = 20
-            #     # Add message to description and print warning to console
-            #     add_msg = "\n*(I can only roll up to 20 dice at once)*"
-            #     print("[" + str(message.content) + "] Too many dice to roll, limiting base dice count to 20")
-            # else:
-            # There are modifier dice, now just throw error
+        elif total_dice_count > total_dice_limit:
+            # Throw error
             print("[" + str(message.content) + "; " + str(message.author) + "] Too many dice to roll, throwing error")
-            await message.channel.send(
-                str(message.author.mention) + " Sorry, I cannot roll that many dice at once.\n"
-                                              "Please try to roll 20 dice or less.")
+            await message.channel.send(f"{message.author.mention} Sorry, I cannot roll that many dice at once.\nPlease try to roll {total_dice_limit} dice or less.")
             # Do not proceed with message processing
             return
-            # end if/else
         # end if/elif
 
         # Create roll description
@@ -581,6 +572,22 @@ async def on_message(message):
         total_result = 0
         max_possible = 20
         min_possible = 0
+        nr_of_embeds = 1
+
+        # Split into more embeds if rolling more than embed limit dice, less than hard limit
+        # Add one to dice count because of empty cell in advantage row
+        if field_limit < total_dice_count + 1 <= total_dice_limit:
+            added_embeds = []
+            nr_of_embeds = math.ceil((total_dice_count + 1) / field_limit)
+            embed.title += f" (1/{nr_of_embeds})"
+            for i in range(nr_of_embeds-1):
+                added_embeds.append(discord.Embed(title=f"{title_preset}Rolling for {message.author.display_name} ({i+2}/{nr_of_embeds})", description="\u200b", color=0x76883c))
+            # end for
+        # end
+
+        # Keep track of nr of field added to embed
+        fields = 0
+        embed_count = -1
 
         # Roll base dice at (dis)advantage
         d20s = roll(20, 2)
@@ -613,14 +620,21 @@ async def on_message(message):
         # Highlight the selected result
         if d20s[0] == total_result:
             embed.add_field(name="d20 #1", value="**" + str(d20s[0]) + "**", inline=True)
+            fields += 1
         else:
             embed.add_field(name="d20 #1", value=str(d20s[0]), inline=True)
+            fields += 1
         # end if/else
         if d20s[1] == total_result:
             embed.add_field(name="d20 #2", value="**" + str(d20s[1]) + "**", inline=True)
+            fields += 1
         else:
             embed.add_field(name="d20 #2", value=str(d20s[1]), inline=True)
+            fields += 1
         # end if/else
+        # Add empty field to fill out the row
+        embed.add_field(name="\u200b", value="\u200b", inline=True)
+        fields += 1
 
         # Any other dice rolling
         for i in range(0, len(dice_type)):
@@ -629,12 +643,27 @@ async def on_message(message):
 
             for result in results:
                 # Go through all results
+                if fields == field_limit:
+                    embed_count += 1
+                    fields = 0
+                # end if
+
                 if dice_count[i] < 0:
                     # Negative dice modifier
                     if result == dice_type[i] or result == 1:
-                        embed.add_field(name="-d" + str(dice_type[i]), value=f"*-{str(result)}*", inline=True)
+                        if embed_count == -1:
+                            embed.add_field(name="-d" + str(dice_type[i]), value=f"*-{str(result)}*", inline=True)
+                        else:
+                            added_embeds[embed_count].add_field(name="-d" + str(dice_type[i]), value=f"*-{str(result)}*", inline=True)
+                        # end if
+                        fields += 1
                     else:
-                        embed.add_field(name="-d" + str(dice_type[i]), value=f"-{str(result)}", inline=True)
+                        if embed_count == -1:
+                            embed.add_field(name="-d" + str(dice_type[i]), value=f"-{str(result)}", inline=True)
+                        else:
+                            added_embeds[embed_count].add_field(name="-d" + str(dice_type[i]), value=f"-{str(result)}", inline=True)
+                        # end if
+                        fields += 1
                     # end if
 
                     total_result -= result
@@ -643,9 +672,19 @@ async def on_message(message):
                 else:
                     # Positive dice modifier
                     if result == dice_type[i] or result == 1:
-                        embed.add_field(name="d" + str(dice_type[i]), value=f"*{str(result)}*", inline=True)
+                        if embed_count == -1:
+                            embed.add_field(name="d" + str(dice_type[i]), value=f"*{str(result)}*", inline=True)
+                        else:
+                            added_embeds[embed_count].add_field(name="d" + str(dice_type[i]), value=f"*{str(result)}*", inline=True)
+                        # end if
+                        fields += 1
                     else:
-                        embed.add_field(name="d" + str(dice_type[i]), value=result, inline=True)
+                        if embed_count == -1:
+                            embed.add_field(name="d" + str(dice_type[i]), value=result, inline=True)
+                        else:
+                            added_embeds[embed_count].add_field(name="d" + str(dice_type[i]), value=result, inline=True)
+                        # end if
+                        fields += 1
                     # end if
 
                     total_result += result
@@ -663,7 +702,20 @@ async def on_message(message):
 
         # Add modifier to calculate total
         if modifier_total != 0:
-            embed.add_field(name="Modifier", value=modifier_total, inline=True)
+            if nr_of_embeds > 1:
+                # add to last embed
+                if modifier_total > 0:
+                    added_embeds[-1].add_field(name="Modifier", value=f"+{modifier_total}", inline=True)
+                else:
+                    added_embeds[-1].add_field(name="Modifier", value=modifier_total, inline=True)
+                # end if
+            else:
+                if modifier_total > 0:
+                    embed.add_field(name="Modifier", value=f"+{modifier_total}", inline=True)
+                else:
+                    embed.add_field(name="Modifier", value=modifier_total, inline=True)
+                # end if
+            # end if
         # end if
 
         total_result += modifier_total
@@ -688,30 +740,70 @@ async def on_message(message):
                 # end if
             # end if
         # end if
-        embed.add_field(name="Total", value=total_result, inline=False)
+        if nr_of_embeds > 1:
+            # add to last embed
+            added_embeds[-1].add_field(name="Total", value=total_result, inline=False)
+        else:
+            embed.add_field(name="Total", value=total_result, inline=False)
+        # end if
 
         # Add stats of roll
         if footer == "":
             # Footer is empty (so no nat. 1 or 20)
-            embed.set_footer(text="min. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " +
-                                    str(round(
-                                        (total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
+            if nr_of_embeds > 1:
+                added_embeds[-1].set_footer(text="min. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " + str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
+            else:
+                embed.set_footer(text="min. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " + str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
+            # end if
         else:
             footer += ("\nmin. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " +
                         str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
             embed.set_footer(text=footer)
+            
+            if nr_of_embeds > 1:
+                added_embeds[-1].set_footer(text=footer)
+            else:
+                embed.set_footer(text=footer)
+            # end if
         # end if/else
         
         # Send message to Discord or DM and update status
-        if dm_roll:
-            # Adjust title to see it in notification
-            embed.title = f"Rolling {desc}: {total_result}"
-            embed.description = ""
-            # Send DM
-            await message.author.send(warning, embed=embed)  
+        if nr_of_embeds > 1:
+            if dm_roll:
+                # Adjust title to see it in notification
+                embed.title = f"Rolling {desc}: {total_result}"
+                embed.description = ""
+                # Send DM
+                await message.author.send(warning, embed=embed)
+
+                # Send other embeds
+                for e in added_embeds:
+                    e.title = f"Rolling {desc}: {total_result}"
+                    await message.author.send(warning, embed=e)
+                # end for
+
+                await message.add_reaction("🎲")
+            else:
+                # Send to server
+                await message.channel.send(warning, embed=embed)
+
+                # Send other embeds
+                for e in added_embeds:
+                    await message.channel.send(warning, embed=e)
+                # end for
+            # end if
         else:
-            # Send to server
-            await message.channel.send(warning, embed=embed)
+            if dm_roll:
+                # Adjust title to see it in notification
+                embed.title = f"Rolling {desc}: {total_result}"
+                embed.description = ""
+                # Send DM
+                await message.author.send(warning, embed=embed)
+                await message.add_reaction("🎲")
+            else:
+                # Send to server
+                await message.channel.send(warning, embed=embed)
+            # end if
         # end if
         # await client.change_presence(activity=discord.Game(name="Rolled " + str(rolled) + " dice"))
         # print(str(time.time() - start) + "sec")
@@ -886,7 +978,6 @@ async def on_message(message):
         del modifier
 
         # Check if dice limit is reached or no dice are left after unifying
-
         if total_dice_count == 0:
             print("[" + str(message.content) + "; " + str(message.author) + "] No dice left after unifying")
             await message.channel.send(str(message.author.mention) +
@@ -894,22 +985,12 @@ async def on_message(message):
                                        f"Please use **{PREFIX}help** to see what formats are supported.")
             # Do not proceed with message processing
             return
-        elif total_dice_count > 20:
-            # if len(dice_type) == 1:
-            #     # No modifier dice
-            #     dice_count[0] = 20
-            #     # Add message to description and print warning to console
-            #     add_msg = "\n*(I can only roll up to 20 dice at once)*"
-            #     print("[" + str(message.content) + "] Too many dice to roll, limiting base dice count to 20")
-            # else:
-            # There are modifier dice, now just throw error
+        elif total_dice_count > total_dice_limit:
+            # Throw error
             print("[" + str(message.content) + "; " + str(message.author) + "] Too many dice to roll, throwing error")
-            await message.channel.send(
-                str(message.author.mention) + " Sorry, I cannot roll that many dice at once.\n"
-                                              "Please try to roll 20 dice or less.")
+            await message.channel.send(f"{message.author.mention} Sorry, I cannot roll that many dice at once.\nPlease try to roll {total_dice_limit} dice or less.")
             # Do not proceed with message processing
             return
-            # end if/else
         # end if/elif
 
         # Create roll description
@@ -934,18 +1015,33 @@ async def on_message(message):
         # end if
 
         # Setup embedding for dice roll response
-        embed = discord.Embed(title=title_preset + "Rolling for " + str(message.author.display_name), description=desc,
-                              color=0x76883c)
+        embed = discord.Embed(title=f"{title_preset}Rolling for {message.author.display_name}", description=desc, color=0x76883c)
         footer = ""
         total_result = 0
         max_possible = 0
         min_possible = 0
+        nr_of_embeds = 1
+
+        # Split into more embeds if rolling more than embed limit dice, less than hard limit
+        if field_limit < total_dice_count <= total_dice_limit:
+            added_embeds = []
+            nr_of_embeds = math.ceil(total_dice_count / field_limit)
+            embed.title += f" (1/{nr_of_embeds})"
+            for i in range(nr_of_embeds-1):
+                added_embeds.append(discord.Embed(title=f"{title_preset}Rolling for {message.author.display_name} ({i+2}/{nr_of_embeds})", description="\u200b", color=0x76883c))
+            # end for
+        # end
+
+        # Keep track of nr of field added to embed
+        fields = 0
+        embed_count = -1
 
         # Roll base dice
         if dice_type[0] == 20 and dice_count[0] == 1:
             # Start with 1d20, natural 1 or natural 20 can occur
             result = roll(20)[0]
             embed.add_field(name="d20", value=result, inline=True)
+            fields += 1
 
             if result == 20:
                 footer = "NATURAL 20"
@@ -968,12 +1064,27 @@ async def on_message(message):
 
             for result in results:
                 # Go through all results
+                if fields == field_limit:
+                    embed_count += 1
+                    fields = 0
+                # end if
+
                 if dice_count[0] < 0:
                     # Negative base dice count
                     if result == dice_type[0] or result == 1:
-                        embed.add_field(name="-d" + str(dice_type[0]), value=f"*-{str(result)}*", inline=True)
+                        if embed_count == -1:
+                            embed.add_field(name="-d" + str(dice_type[0]), value=f"*-{str(result)}*", inline=True)
+                        else:
+                            added_embeds[embed_count].add_field(name="-d" + str(dice_type[0]), value=f"*-{str(result)}*", inline=True)
+                        # end if
+                        fields += 1
                     else:
-                        embed.add_field(name="-d" + str(dice_type[0]), value=f"-{str(result)}", inline=True)
+                        if embed_count == -1:
+                            embed.add_field(name="-d" + str(dice_type[0]), value=f"-{str(result)}", inline=True)
+                        else:
+                            added_embeds[embed_count].add_field(name="-d" + str(dice_type[0]), value=f"-{str(result)}", inline=True)
+                        # end if
+                        fields += 1
                     # end if
 
                     total_result -= result
@@ -982,9 +1093,19 @@ async def on_message(message):
                 else:
                     # Positive base dice count
                     if result == dice_type[0] or result == 1:
-                        embed.add_field(name="d" + str(dice_type[0]), value=f"*{str(result)}*", inline=True)
+                        if embed_count == -1:
+                            embed.add_field(name="d" + str(dice_type[0]), value=f"*{str(result)}*", inline=True)
+                        else:
+                            added_embeds[embed_count].add_field(name="d" + str(dice_type[0]), value=f"*{str(result)}*", inline=True)
+                        # end if
+                        fields += 1
                     else:
-                        embed.add_field(name="d" + str(dice_type[0]), value=result, inline=True)
+                        if embed_count == -1:
+                            embed.add_field(name="d" + str(dice_type[0]), value=result, inline=True)
+                        else:
+                            added_embeds[embed_count].add_field(name="d" + str(dice_type[0]), value=result, inline=True)
+                        # end if
+                        fields += 1
                     # end if
 
                     total_result += result
@@ -1007,12 +1128,27 @@ async def on_message(message):
 
             for result in results:
                 # Go through all results
+                if fields == field_limit:
+                    embed_count += 1
+                    fields = 0
+                # end if
+
                 if dice_count[i] < 0:
                     # Negative dice modifier
                     if result == dice_type[i] or result == 1:
-                        embed.add_field(name="-d" + str(dice_type[i]), value=f"*-{str(result)}*", inline=True)
+                        if embed_count == -1:
+                            embed.add_field(name="-d" + str(dice_type[i]), value=f"*-{str(result)}*", inline=True)
+                        else:
+                            added_embeds[embed_count].add_field(name="-d" + str(dice_type[i]), value=f"*-{str(result)}*", inline=True)
+                        # end if
+                        fields += 1
                     else:
-                        embed.add_field(name="-d" + str(dice_type[i]), value=f"-{str(result)}", inline=True)
+                        if embed_count == -1:
+                            embed.add_field(name="-d" + str(dice_type[i]), value=f"-{str(result)}", inline=True)
+                        else:
+                            added_embeds[embed_count].add_field(name="-d" + str(dice_type[i]), value=f"-{str(result)}", inline=True)
+                        # end if
+                        fields += 1
                     # end if
 
                     total_result -= result
@@ -1022,9 +1158,19 @@ async def on_message(message):
                 else:
                     # Positive dice modifier
                     if result == dice_type[i] or result == 1:
-                        embed.add_field(name="d" + str(dice_type[i]), value=f"*{str(result)}*", inline=True)
+                        if embed_count == -1:
+                            embed.add_field(name="d" + str(dice_type[i]), value=f"*{str(result)}*", inline=True)
+                        else:
+                            added_embeds[embed_count].add_field(name="d" + str(dice_type[i]), value=f"*{str(result)}*", inline=True)
+                        # end if
+                        fields += 1
                     else:
-                        embed.add_field(name="d" + str(dice_type[i]), value=result, inline=True)
+                        if embed_count == -1:
+                            embed.add_field(name="d" + str(dice_type[i]), value=result, inline=True)
+                        else:
+                            added_embeds[embed_count].add_field(name="d" + str(dice_type[i]), value=result, inline=True)
+                        # end if
+                        fields += 1
                     # end if
 
                     total_result += result
@@ -1042,7 +1188,20 @@ async def on_message(message):
 
         # Add modifier to calculate total
         if modifier_total != 0:
-            embed.add_field(name="Modifier", value=modifier_total, inline=True)
+            if nr_of_embeds > 1:
+                # add to last embed
+                if modifier_total > 0:
+                    added_embeds[-1].add_field(name="Modifier", value=f"+{modifier_total}", inline=True)
+                else:
+                    added_embeds[-1].add_field(name="Modifier", value=modifier_total, inline=True)
+                # end if
+            else:
+                if modifier_total > 0:
+                    embed.add_field(name="Modifier", value=f"+{modifier_total}", inline=True)
+                else:
+                    embed.add_field(name="Modifier", value=modifier_total, inline=True)
+                # end if
+            # end if
         # end if
 
         total_result += modifier_total
@@ -1067,7 +1226,13 @@ async def on_message(message):
                 # end if
             # end if
         # end if
-        embed.add_field(name="Total", value=total_result, inline=False)
+        if nr_of_embeds > 1:
+            # add to last embed
+            added_embeds[-1].add_field(name="Total", value=total_result, inline=False)
+        else:
+            embed.add_field(name="Total", value=total_result, inline=False)
+        # end if
+        
 
         # Store message for re-rolling
         prev_call = msg
@@ -1075,23 +1240,58 @@ async def on_message(message):
         # Add stats of roll
         if footer == "":
             # Footer is empty (so no nat. 1 or 20)
-            embed.set_footer(text="min. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " + str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
+            if nr_of_embeds > 1:
+                added_embeds[-1].set_footer(text="min. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " + str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
+            else:
+                embed.set_footer(text="min. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " + str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
+            # end if
         else:
             footer += ("\nmin. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " + str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
-            embed.set_footer(text=footer)
+            
+            if nr_of_embeds > 1:
+                added_embeds[-1].set_footer(text=footer)
+            else:
+                embed.set_footer(text=footer)
+            # end if
         # end if/else
 
         # Send message to Discord or DM and update status
-        if dm_roll:
-            # Adjust title to see it in notification
-            embed.title = f"Rolling {desc}: {total_result}"
-            embed.description = ""
-            # Send DM
-            await message.author.send(warning, embed=embed)
-            await message.add_reaction("🎲")
+        if nr_of_embeds > 1:
+            if dm_roll:
+                # Adjust title to see it in notification
+                embed.title = f"Rolling {desc}: {total_result}"
+                embed.description = ""
+                # Send DM
+                await message.author.send(warning, embed=embed)
+
+                # Send other embeds
+                for e in added_embeds:
+                    e.title = f"Rolling {desc}: {total_result}"
+                    await message.author.send(warning, embed=e)
+                # end for
+
+                await message.add_reaction("🎲")
+            else:
+                # Send to server
+                await message.channel.send(warning, embed=embed)
+
+                # Send other embeds
+                for e in added_embeds:
+                    await message.channel.send(warning, embed=e)
+                # end for
+            # end if
         else:
-            # Send to server
-            await message.channel.send(warning, embed=embed)
+            if dm_roll:
+                # Adjust title to see it in notification
+                embed.title = f"Rolling {desc}: {total_result}"
+                embed.description = ""
+                # Send DM
+                await message.author.send(warning, embed=embed)
+                await message.add_reaction("🎲")
+            else:
+                # Send to server
+                await message.channel.send(warning, embed=embed)
+            # end if
         # end if
         # await client.change_presence(activity=discord.Game(name="Rolled " + str(rolled) + " dice"))
         print(str(time.time() - start) + "sec; now rolled " + str(rolled) + " dice")
