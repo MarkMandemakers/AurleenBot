@@ -15,7 +15,6 @@ print("Starting up...") # STarting
 # Setup global variables
 client = discord.Client()
 rolled = 0
-roll_stats = True
 prev_call = ""
 d20_stats = [0] * 20
 d20_rolled = 0
@@ -203,7 +202,6 @@ async def on_ready():
     print(f"Ready on Discord as {client.user}, watching {len(discord_data)} servers {guild_list}")
     # await client.change_presence(activity=discord.Game(name='Ready to roll!'))
 
-    # version_info = f"v{ver} ({ver_date})"
     await client.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=f"{PREFIX}help"))
     # await client.change_presence(activity=discord.Game(name=version_info)) # Set status to version nr
     # await client.change_presence(activity=discord.Game(name='Don\'t mind me, just testing the bot!'))
@@ -228,7 +226,6 @@ async def on_message(message):
     start = time.time()
     # Setup variables
     global rolled
-    global roll_stats
     global prev_call
     global d20_stats
     global d20_rolled
@@ -285,7 +282,6 @@ async def on_message(message):
                 gen_stats_img(True)
             # end if
             rolled = 0
-            roll_stats = True
             d20_stats = [0] * 20
             d20_rolled = 0
             # print(d20_rolled)
@@ -301,20 +297,6 @@ async def on_message(message):
             # await message.add_reaction("✅")
             return
         # end if - Bot reset
-
-        # Let admin toggle "out of" for rolls
-        if msg.startswith("toggle"):
-            roll_stats = not roll_stats
-            # prev_call = ""
-            if roll_stats:
-                print("[" + str(message.author) + "] Turned roll statistics ON...")
-                await message.add_reaction("✅")
-            else:
-                print("[" + str(message.author) + "] Turned roll statistics OFF...")
-                await message.add_reaction("❎")
-            # end if/else
-            return
-        # end if - toggle
 
         # Set channel to watch
         if msg.startswith("watch"):
@@ -344,29 +326,7 @@ async def on_message(message):
             update_discord()
             return
         # end if - unwatch channel
-
-        # Set server prefix
-        # if msg.startswith(f"{PREFIX}prefix"):
-        #     command_split = message.content.split(" ")
-
-        #     if len(command_split) == 2:
-        #         # Process new prefix
-        #         if len(command_split[1]) == 1:
-        #             oldPrefix = PREFIX
-        #             PREFIX = command_split[1]
-        #             update_discord()
-        #             await message.channel.send(f"Adjusted command prefix from **{oldPrefix}** to **{PREFIX}**")
-        #             print(f"[{message.author}] Adjusted command prefix from **{oldPrefix}** to **{PREFIX}**")
-        #         else:
-        #             # Error
-        #             await message.channel.send(f"Incorrect prefix format!\nPrefix can only contain one symbol")
-        #         # end if/else
-        #     else:
-        #         # Error
-        #         await message.channel.send(f"Incorrect command format!\nExpected format is **{PREFIX}prefix newPrefix**")
-        #     # end if/else
-        # # end if - set server prefix
-    # end if - ADMINS
+    # end if - ADMIN COMMANDS
 
 
     ###########################################################################################################
@@ -437,54 +397,6 @@ async def on_message(message):
 
 
     ###########################################################################################################
-    # INITIATIVE TRACKING
-    ###########################################################################################################
-    # Show initiative
-    # if msg.startswith("init") and (message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
-    #     command_split = message.content.split(" ")
-        
-    #     if len(command_split) == 1:         # Only show initiative
-    #         if not bool(initiative):        # Empty initiative tracker
-    #             await message.channel.send("No initiative to be tracked yet...")
-    #         else:
-    #             initiative_embed = discord.Embed(title="Initiative Tracking", description="", color=0x76883c)
-    #             # initiative_embed.add_field(name="[5] John\n[6] Bob", value="\u200b", inline=False)
-    #             initiative_string = ""
-    #             for i in sorted(initiative.keys()):
-    #                 if len(initiative[i]) == 1:
-    #                     initiative_string += f"[{i}] {initiative[i]}\n"
-    #                 else:
-    #                     initiative_string += f"[{i}] "
-    #                     for j in range(len(initiative[i])-1):
-    #                         initiative_string += f"{initiative[i][j]}, "
-    #                     # end for
-    #                     initiative_string += f"{initiative[i][len(initiative[i])]}\n"
-    #                 # end if/else
-    #             # end for
-
-    #             initiative_embed.add_field(name="\u200b", value=initiative_string, inline=False)
-    #             initiative_embed.set_footer(text=f"Last update: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-
-    #             await message.channel.send(embed=initiative_embed)
-    #         # end if/else        
-    #     else:                   # Add to initiative
-    #         print(command_split)
-
-    #         for i in command_split:
-    #             print(isinstance(i, int))
-    #         # end for
-    #     # end if/else
-    # # end - initiative tracking
-
-    # # Roll initiative
-    # # if msg.startswith("!init") and (message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
-    # #     command_split = message.content.split(" ")
-    # #     print(command_split)
-    # # end - initiative tracking
-
-
-
-    ###########################################################################################################
     # RE-ROLLING
     ###########################################################################################################
     if msg.startswith(("reroll", "re-roll")) and (message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
@@ -501,6 +413,7 @@ async def on_message(message):
             title_preset = "Re-"
         # end if/else
     # end if - re-rolling
+
 
     ###########################################################################################################
     # ROLLING WITH ADVANTAGE/ DISADVANTAGE
@@ -692,19 +605,17 @@ async def on_message(message):
         # Add total to embedding
         embed.add_field(name="Total", value=total_result, inline=False)
 
-        # Add stats if wanted
-        if roll_stats:
-            if footer == "":
-                # Footer is empty (so no nat. 1 or 20)
-                embed.set_footer(text="min. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " +
-                                      str(round(
-                                          (total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
-            else:
-                footer += ("\nmin. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " +
-                           str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
-                embed.set_footer(text=footer)
-            # end if/else
-        # end if
+        # Add stats of roll
+        if footer == "":
+            # Footer is empty (so no nat. 1 or 20)
+            embed.set_footer(text="min. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " +
+                                    str(round(
+                                        (total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
+        else:
+            footer += ("\nmin. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " +
+                        str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
+            embed.set_footer(text=footer)
+        # end if/else
 
         # Send message to Discord and update status
         await message.channel.send(warning, embed=embed)
@@ -1032,19 +943,17 @@ async def on_message(message):
         # Store message for re-rolling
         prev_call = msg
 
-        # Add stats if wanted
-        if roll_stats:
-            if footer == "":
-                # Footer is empty (so no nat. 1 or 20)
-                embed.set_footer(text="min. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " +
-                                      str(round(
-                                          (total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
-            else:
-                footer += ("\nmin. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " +
-                           str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
-                embed.set_footer(text=footer)
-            # end if/else
-        # end if
+        # Add stats of roll
+        if footer == "":
+            # Footer is empty (so no nat. 1 or 20)
+            embed.set_footer(text="min. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " +
+                                    str(round(
+                                        (total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
+        else:
+            footer += ("\nmin. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " +
+                        str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
+            embed.set_footer(text=footer)
+        # end if/else
 
         # Send message to Discord and update status
         await message.channel.send(warning, embed=embed)
