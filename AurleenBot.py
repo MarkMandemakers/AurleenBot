@@ -32,6 +32,8 @@ ADMINS = ""
 BOT_TOKEN = ""
 PREFIX = ""
 discord_data = ""
+probs = []
+DEV_MODE = False # Disables graph output, adjusts status, etc.
 
 # Load loc.json to find location of settings files
 try:
@@ -211,6 +213,65 @@ def load_json():
 # end def
 
 
+# Recursively generate probability of dice rolls
+def generate_rolls(sum, sides):
+    global probs
+    
+    # Finish recursive loop if all dice have been processed
+    if len(sides) == 0:
+        probs[sum] += 1
+        return
+    # end if
+
+    # Otherwise find first dice max and start recursive loop
+    top = sides[0]
+    for x in range(1, top + 1):
+        generate_rolls(sum + x, sides[1:])
+    # end for
+# end def
+
+
+# Calculate probability of dice combination ==, >=, >, <, <= a target
+def dice_prob(target, type, sides):
+    # Setup variables
+    global probs
+    max_val = 0
+    possibilities = 1
+
+    # Calculate nr of possibilities and maximal value possible
+    for i in sides:
+        max_val += i
+        possibilities *= i
+    # end for
+
+    # Give error if invalid target is provided
+    if target > max_val or target < 0:
+        # print(f"Invalid target {target}!")
+        return [False, 0, 0]
+    # end if
+
+    # Generate probabilities
+    probs = [0]*(max_val + 1)
+    generate_rolls(0, sides)
+    prob_total = 0
+
+    # Set total probability based on check type
+    if type == "==":
+        prob_total = probs[target]
+    elif type == ">":
+        prob_total = sum(probs[target+1:])
+    elif type == ">=":
+        prob_total = sum(probs[target:])
+    elif type == "<":
+        prob_total = sum(probs[:target])
+    elif type == "<=":
+        prob_total = sum(probs[:target+1])
+    # end if
+
+    return [True, prob_total, possibilities]
+# end def
+
+
 # When done setting up the bot user in Discord
 @client.event
 async def on_ready():
@@ -228,9 +289,11 @@ async def on_ready():
     print(f"Ready on Discord as {client.user}, watching {len(discord_data)} servers {guild_list}")
     # await client.change_presence(activity=discord.Game(name='Ready to roll!'))
 
-    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=f"{PREFIX}help"))
-    # await client.change_presence(activity=discord.Game(name=version_info)) # Set status to version nr
-    # await client.change_presence(activity=discord.Game(name='Don\'t mind me, just testing the bot!'))
+    if DEV_MODE:
+        await client.change_presence(activity=discord.Game(name='around, testing the bot...'))
+    else:
+        await client.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=f"{PREFIX}help"))
+    # end if
     # print_stats()
 # end def
 
@@ -291,7 +354,7 @@ async def on_message(message):
     if str(message.author.id) in ADMINS or (not isinstance(message.channel, discord.channel.DMChannel) and str(message.author.id) in discord_data[str(message.guild.id)]['admins']):
         if msg.startswith(("quit", "stop", "exit")):
             print("[" + str(message.author) + "] Shutting down...")
-            if d20_rolled > 1:
+            if not DEV_MODE and d20_rolled > 1:
                 gen_stats_img(True)
             # end if
             update_discord()
@@ -304,7 +367,7 @@ async def on_message(message):
         # Let an admin reset the bot
         if msg.startswith("reset"):
             print("[" + str(message.author) + "] Resetting...")
-            if d20_rolled > 0:
+            if not DEV_MODE and d20_rolled > 0:
                 gen_stats_img(True)
             # end if
             rolled = 0
@@ -818,19 +881,43 @@ async def on_message(message):
 
         # Add total to embedding, handle check if needed
         if len(check_roll) > 0:
+            # Generate list of dice sides
+            contains_negative_dice = False
+            sides = [20] # Add 20 for (dis)advantage roll
+            for i in range(len(dice_count)):
+                # Probability calculation doesn't work with negative dice (yet)
+                if dice_count[i] < 0:
+                    contains_negative_dice = True
+                    break
+                # end if
+                sides.extend([dice_type[i]]*dice_count[i])
+            # end for
+
+            # Calculate probability of success
+            prob_add = ""
+            if not contains_negative_dice:
+                [success, prob, poss] = dice_prob(int(check_roll[1]), check_roll[0], sides)
+                if success:
+                    prob_add = f"\nChance: {round(prob/poss*100, 2)}% ({prob} / {poss})"
+                # end if
+                if not success or prob == 0:
+                    prob_add = " (impossible)"
+                # end if
+            # end if
+
             if eval(f"{total_result}{check_roll[0]}{check_roll[1]}"):
                 # embed.add_field(name="Total", value=f"{total_result} (Success)", inline=False)
                 if footer == "":
-                    footer += "SUCCESS"
+                    footer += f"SUCCESS{prob_add}"
                 else:
-                    footer += "\nSUCCESS"
+                    footer += f"\nSUCCESS{prob_add}"
                 # end if
             else:
                 # embed.add_field(name="Total", value=f"{total_result} (Fail)", inline=False)
                 if footer == "":
-                    footer += "FAIL"
+                    footer += f"FAIL{prob_add}"
                 else:
-                    footer += "\nFAIL"
+                    footer += f"\nFAIL{prob_add}"
                 # end if
             # end if
         # end if
@@ -1248,7 +1335,7 @@ async def on_message(message):
                     total_result -= result
                     max_possible -= 1
                     min_possible -= dice_type[i]
-                    print(min_possible)
+                    # print(min_possible)
                 else:
                     # Positive dice modifier
                     if result == dice_type[i] or result == 1:
@@ -1304,21 +1391,45 @@ async def on_message(message):
 
         # Add total to embedding, handle check if needed
         if len(check_roll) > 0:
-            if eval(f"{total_result}{check_roll[0]}{check_roll[1]}"):
-                # embed.add_field(name="Total", value=f"{total_result} (Success)", inline=False)
-                if footer == "":
-                    footer += "SUCCESS"
-                else:
-                    footer += "\nSUCCESS"
+            # Generate list of dice sides
+            contains_negative_dice = False
+            sides = []
+            for i in range(len(dice_count)):
+                # Probability calculation doesn't work with negative dice (yet)
+                if dice_count[i] < 0:
+                    contains_negative_dice = True
+                    break
                 # end if
-            else:
-                # embed.add_field(name="Total", value=f"{total_result} (Fail)", inline=False)
-                if footer == "":
-                    footer += "FAIL"
-                else:
-                    footer += "\nFAIL"
+                sides.extend([dice_type[i]]*dice_count[i])
+            # end for
+
+            # Calculate probability of success
+            prob_add = ""
+            if not contains_negative_dice:
+                [success, prob, poss] = dice_prob(int(check_roll[1]), check_roll[0], sides)
+                if success:
+                    prob_add = f"\nChance: {round(prob/poss*100, 2)}% ({prob} / {poss})"
                 # end if
             # end if
+
+            # Based on whether or not the probability could be calculated, add info to footer
+            try:
+                success
+            except NameError:
+                if eval(f"{total_result}{check_roll[0]}{check_roll[1]}"):
+                    footer += f"SUCCESS{prob_add}" if footer == "" else f"\nSUCCESS{prob_add}"
+                else:
+                    footer += f"FAIL{prob_add}" if footer == "" else f"\nFAIL{prob_add}"
+                # end if
+            else:
+                if eval(f"{total_result}{check_roll[0]}{check_roll[1]}"):
+                    footer += f"SUCCESS{prob_add}" if footer == "" else f"\nSUCCESS{prob_add}"
+                elif not success or prob == 0:
+                    footer += f"IMPOSSIBLE" if footer == "" else f"\nIMPOSSIBLE"
+                else:
+                    footer += f"FAIL{prob_add}" if footer == "" else f"\nFAIL{prob_add}"
+                # end if
+            # end try except
         # end if
         if nr_of_embeds > 1:
             # add to last embed
