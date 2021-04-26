@@ -953,14 +953,15 @@ async def on_message(message):
             if dm_roll:
                 # Adjust title to see it in notification
                 embed.title = f"Rolling {desc}: {total_result}"
-                embed.description = ""
+                embed.description = f"1 / {nr_of_embeds}"
                 # Send DM
                 await message.author.send(warning, embed=embed)
 
                 # Send other embeds
-                for e in added_embeds:
-                    e.title = f"Rolling {desc}: {total_result}"
-                    await message.author.send(warning, embed=e)
+                for i in range(len(added_embeds)):
+                    added_embeds[i].title = f"Rolling {desc}: {total_result}"
+                    added_embeds[i].description = f"{i+2} / {nr_of_embeds}"
+                    await message.author.send(warning, embed=added_embeds[i])
                 # end for
 
                 await message.add_reaction("🎲")
@@ -1465,14 +1466,15 @@ async def on_message(message):
             if dm_roll:
                 # Adjust title to see it in notification
                 embed.title = f"Rolling {desc}: {total_result}"
-                embed.description = ""
+                embed.description = f"1 / {nr_of_embeds}"
                 # Send DM
                 await message.author.send(warning, embed=embed)
 
                 # Send other embeds
-                for e in added_embeds:
-                    e.title = f"Rolling {desc}: {total_result}"
-                    await message.author.send(warning, embed=e)
+                for i in range(len(added_embeds)):
+                    added_embeds[i].title = f"Rolling {desc}: {total_result}"
+                    added_embeds[i].description = f"{i+2} / {nr_of_embeds}"
+                    await message.author.send(warning, embed=added_embeds[i])
                 # end for
 
                 await message.add_reaction("🎲")
