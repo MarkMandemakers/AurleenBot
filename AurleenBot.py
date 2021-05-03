@@ -32,6 +32,8 @@ ADMINS = ""
 BOT_TOKEN = ""
 PREFIX = ""
 discord_data = ""
+preset_data = ""
+presets = []
 probs = []
 DEV_MODE = False # Disables graph output, adjusts status, etc.
 
@@ -65,7 +67,7 @@ except Exception as e:
 # Load Discord settings from json file
 if os.path.isfile(f"{data_folder}discord.json"):
     try:
-        with open(swd+'discord.json') as f2:
+        with open(data_folder+'discord.json') as f2:
             discord_data = json.load(f2)
             f2.close()
     except Exception as e:
@@ -81,6 +83,17 @@ else:
         print(f"Cannot create discord.json: {e}")
     # end try except
 # end if
+
+# Load preset settings from json file
+try:
+    with open(data_folder+'presets.json') as f:
+        preset_data = json.load(f)
+        f.close()
+    # end with
+except Exception as e:
+    print(f"Error, probably no presets.json found: {e}")
+# end try except
+
 
 # Update Discord.json data
 def update_discord():
@@ -98,6 +111,16 @@ def update_discord():
     except Exception as e:
         print("Error, probably no discord.json found: " + str(e))
     # end try/except
+# end def
+
+
+# Convert raw preset data to list for msg checks
+def convert_presets():
+    global preset_data
+    global presets
+
+    presets = tuple(preset_data.keys())
+    print(f"Currently known presets: {presets}")
 # end def
 
 
@@ -190,6 +213,7 @@ def add_server(g):
 def load_json():
     global data
     global discord_data
+    global preset_data
     global BOT_TOKEN
     global ADMINS
     global PREFIX
@@ -209,6 +233,14 @@ def load_json():
             f.close()
     except Exception as e:
         print("Error, probably no discord.json found: " + str(e))
+    # end try except
+    try:
+        with open(swd+'presets.json') as f:
+            preset_data = json.load(f)
+            convert_presets()
+            f.close()
+    except Exception as e:
+        print("Error, probably no presets.json found: " + str(e))
     # end try except
 # end def
 
@@ -284,6 +316,7 @@ async def on_ready():
         # end if
     # end for
 
+    convert_presets()
     update_discord()
 
     print(f"Ready on Discord as {client.user}, watching {len(discord_data)} servers {guild_list}")
@@ -390,10 +423,22 @@ async def on_message(message):
         # Add or remove admins
         if msg.startswith("admin"):
             msg_split = message.content.lower().split(" ")
-            print(msg_split)
-
             admin_results = ""
             changes = False
+
+            # List admin commands
+            if len(msg_split) == 1 or "command" in msg_split[1]:
+                embed = discord.Embed(title="AurleenBot Admin Commands", color=0x76883c)
+                embed.add_field(name=f"{PREFIX}stats, {PREFIX}statistics", value="Show image of d20 roll statistics", inline=False)
+                embed.add_field(name=f"{PREFIX}watch", value="Tell bot to watch this channel, ignore others", inline=False)
+                embed.add_field(name=f"{PREFIX}unwatch", value="Tell bot to stop watching this channel", inline=False)
+                embed.add_field(name=f"{PREFIX}reset", value="Reset the bot: reset dice count, new random seed, reload settings files", inline=False)
+                embed.add_field(name=f"{PREFIX}quit, {PREFIX}stop, {PREFIX}exit", value="Shut down the bot", inline=False)
+                await message.author.send(embed=embed)
+                print("[" + str(message.author) + "] Showed admin commands")
+                # prev_call = ""
+                return
+            # end if
 
             # Add admin
             if "add" in msg_split[1]:
@@ -436,7 +481,16 @@ async def on_message(message):
                     admin_list.append(await message.guild.fetch_member(int(a)))
                 # end for
 
-                admin_list_msg = "**Admins on this server:**"
+                # If there are no specific admins for this server
+                if len(admin_list) == 0:
+                    await message.channel.send(f"There are no admins on this server, except for global admins")
+                    return
+                elif len(admin_list) == 1:
+                    admin_list_msg = "**Admin on this server:**"
+                else:
+                    admin_list_msg = "**Admins on this server:**"
+                # end if
+
                 for a in admin_list:
                     if a.nick == None:
                         admin_list_msg += f"\n{a.name}"
@@ -995,6 +1049,22 @@ async def on_message(message):
     ###########################################################################################################
     # PRESETS
     ###########################################################################################################
+    # Check presets from json data
+    if msg.startswith(presets):
+        # Check which preset it is
+        for p in presets:
+            if msg.startswith(p):
+                # Replace preset in msg with dice
+                msg = msg.replace(p, preset_data[p]['value'])
+
+                # Set additional message and previous call
+                add_msg = f"*{preset_data[p]['msg']}*"
+
+                # Prevent other presets from being checked to speed up processing
+                break
+            # end if
+        # end for
+    # end if - presets
 
     # Quick-roll a d20 using !roll
     if msg.startswith("roll"):
@@ -1003,28 +1073,6 @@ async def on_message(message):
         
         prev_call = msg
     # end if - quick-roll d20
-
-    # Custom presets for 1d20 + 1d4
-    if msg.startswith("bless"):
-        # Replace preset with corresponding dice, add comment and continue as normal
-        msg = msg.replace("bless", "r1d20+1d4")
-        add_msg = "*Bless: +1d4*"
-        prev_call = msg
-    # end if - bless preset
-
-    if msg.startswith("guidance"):
-        # Replace preset with corresponding dice, add comment and continue as normal
-        msg = msg.replace("guidance", "r1d20+1d4")
-        add_msg = "*Guidance: +1d4*"
-        prev_call = msg
-    # end if - guidance preset
-
-    if msg.startswith("bane"):
-        # Replace preset with corresponding dice, add comment and continue as normal
-        msg = msg.replace("bane", "r1d20-1d4")
-        add_msg = "*Bane: -1d4*"
-        prev_call = msg
-    # end if - guidance preset
 
     # Handle slight errors in command (e.g. !rd20, !d20)
     if msg_with_prefix.startswith((f"{PREFIX}rd", f"{PREFIX}d")):
@@ -1104,7 +1152,7 @@ async def on_message(message):
         # print(f"msg: {msg}\nbase dice: {base_dice}\nmodifier dice: {modifier_dice}\nmodifier: {modifier}")
 
         # Check command format
-        if len(base_dice) != 1:
+        if len(base_dice) != 1 or int(base_dice[0].split("d")[1]) <= 0:
             # No base dice found (or too many), return error message
             print("[" + str(message.content) + "; " + str(message.author) + "] Not correct number of base dice")
             await message.channel.send(str(message.author.mention) + " Something seems to be off with that command.\n"
