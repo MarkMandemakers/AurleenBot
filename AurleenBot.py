@@ -152,6 +152,20 @@ def update_lifetime_stats():
 # end def
 
 
+# Calculate average and stdev of rolls
+def calculate_roll_avg(stats):
+    sum_val = 0
+    
+    for i in range(len(stats)):
+        sum_val += (i+1) * stats[i]
+    # end for
+    # print(stats)
+    # print(sum_val)
+
+    return round(sum_val / sum(stats), 2)
+# end def
+
+
 # Convert raw preset data to list for msg checks
 def convert_presets():
     global preset_data
@@ -180,25 +194,46 @@ def print_stats():
 
 # Generate statistics image
 def gen_stats_img(stats, name, save=False, lifetime=False):
+    print(stats)
+
     x = range(1, 21)
     plt.clf()
-    plt.bar(x, stats)
-    plt.hlines(sum(stats)/20, 0.5, 20.5, linestyles='dashed')
+    if name == "Total":
+        bottom = [0]*20
+        c = 1
+        for u in stats:
+            if u != "Total":
+                plt.bar(x, stats[u]['Rolls'], bottom=bottom, label=f"{stats[u]['Name']}\nAvg {calculate_roll_avg(stats[u]['Rolls'])}; {sum(stats[u]['Rolls'])}x")
+                bottom = [bottom[i] + stats[u]['Rolls'][i] for i in range(len(bottom))]
+            # end if
+        # end for
+        plt.hlines(sum(stats['Total']['Rolls'])/20, 0.5, 20.5, linestyles='dashed')
+        if lifetime:
+            plt.title(f"Distribution after {sum(stats['Total']['Rolls'])} d20 rolls ({name} Lifetime)\nAverage: {calculate_roll_avg(stats['Total']['Rolls'])}")
+        else:
+            plt.title(f"Distribution after {sum(stats['Total']['Rolls'])} d20 rolls ({name} Session)\nAverage: {calculate_roll_avg(stats['Total']['Rolls'])}")
+        # end if
+        plt.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
+    else:
+        plt.bar(x, stats['Rolls'])
+        plt.hlines(sum(stats['Rolls'])/20, 0.5, 20.5, linestyles='dashed')
+        if lifetime:
+            plt.title(f"Distribution after {sum(stats['Rolls'])} d20 rolls ({name} Lifetime)\nAverage: {calculate_roll_avg(stats['Rolls'])}")
+        else:
+            plt.title(f"Distribution after {sum(stats['Rolls'])} d20 rolls ({name} Session)\nAverage: {calculate_roll_avg(stats['Rolls'])}")
+        # end if
+    # end if
     plt.xticks(x)
     plt.xlabel("d20 Value")
     plt.ylabel("Frequency")
-    if lifetime:
-        plt.title(f"Distribution after {sum(stats)} d20 rolls ({name} Lifetime)")
-    else:
-        plt.title(f"Distribution after {sum(stats)} d20 rolls ({name} Session)")
-    # end if
     plt.xlim(0.5, len(x) + .5)
-    plt.savefig("stats.png")
+    plt.savefig("stats.png", bbox_inches='tight')
     # plt.show()
 
     if save:
-        plt.savefig(f"{swd}stats/{str(datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))}.png")
+        plt.savefig(f"{swd}stats/{str(datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))}.png", bbox_inches='tight')
     # end if
+    plt.close()
 # end def
 
 
@@ -368,7 +403,9 @@ async def on_ready():
 
     # Setup session stats
     session_stats = {}
-    session_stats['Total'] = [0]*20
+    session_stats['Total'] = {}
+    session_stats['Total']['Name'] = "Total"
+    session_stats['Total']['Rolls'] = [0]*20
 
     convert_presets()
     update_discord()
@@ -446,7 +483,7 @@ async def on_message(message):
         if msg.startswith(("quit", "stop", "exit")):
             print("[" + str(message.author) + "] Shutting down...")
             if not DEV_MODE and d20_rolled > 1:
-                gen_stats_img(stats=session_stats['Total'], name='Total', save=True)
+                gen_stats_img(stats=session_stats, name='Total', save=True)
             # end if
             update_discord()
             update_lifetime_stats()
@@ -460,13 +497,15 @@ async def on_message(message):
         if msg.startswith("reset"):
             print("[" + str(message.author) + "] Resetting...")
             if not DEV_MODE and d20_rolled > 0:
-                gen_stats_img(stats=session_stats['Total'], name='Total', save=True)
+                gen_stats_img(stats=session_stats, name='Total', save=True)
             # end if
             rolled = 0
             d20_stats = [0] * 20
             d20_rolled = 0
             session_stats = {}
-            session_stats['Total'] = [0]*20
+            session_stats['Total'] = {}
+            session_stats['Total']['Name'] = "Total"
+            session_stats['Total']['Rolls'] = [0]*20
             # print(d20_rolled)
             # print(d20_stats)
             print_stats()
@@ -682,27 +721,34 @@ async def on_message(message):
             target = "Total"
         # end if
 
+        # Update lifetime stats file
+        update_lifetime_stats()
+
         # Session rolls
         if ("life" not in msg and "lt" not in msg) or "ses" in msg:
-            print(msg)
             if target == 'Total' or str(target.id) in session_stats:
+                if target == 'Total' and sum(session_stats['Total']['Rolls']) <= 0:
+                    print("[" + str(message.author) + "] No stats yet")
+                    await message.channel.send(str(message.author.mention) +
+                                            " There are no statistics about d20 rolls to show yet...")
+                    return
+                # end if
+                if target != "Total" and (str(target.id)) in session_stats and sum(session_stats[str(target.id)]["Rolls"]) <= 0:
+                    print("[" + str(message.author) + "] No stats yet")
+                    await message.channel.send(str(message.author.mention) +
+                                            " There are no statistics about d20 rolls to show yet...")
+                    return
+                # end if
                 print("[" + str(message.author) + "] Displaying stats")
                 # Print to console
                 print_stats()
 
                 # Generate image
                 if target == 'Total':
-                    gen_stats_img(stats=session_stats[target], name=target)
+                    gen_stats_img(stats=session_stats, name=target)
                 else:
-                    if target.nick == None:
-                        gen_stats_img(stats=session_stats[str(target.id)], name=target.name)
-                    else:
-                        gen_stats_img(stats=session_stats[str(target.id)], name=target.nick)
-                    # end if
+                    gen_stats_img(stats=session_stats[str(target.id)], name=target.display_name)
                 # end if
-
-                # Update lifetime stats file
-                update_lifetime_stats()
 
                 # Send image to Discord
                 await message.channel.send(file=discord.File('stats.png'))
@@ -714,23 +760,29 @@ async def on_message(message):
         elif "life" in msg or "lt" not in message:
         # Lifetime rolls
             if target == 'Total' or str(target.id) in lifetime_stats:
+                if target == 'Total' and sum(lifetime_stats['Total']['Rolls']) <= 0:
+                    print("[" + str(message.author) + "] No stats yet")
+                    await message.channel.send(str(message.author.mention) +
+                                            " There are no statistics about d20 rolls to show yet...")
+                    return
+                # end if
+                if target != "Total" and (str(target.id)) in lifetime_stats and sum(lifetime_stats[str(target.id)]["Rolls"]) <= 0:
+                    print("[" + str(message.author) + "] No stats yet")
+                    await message.channel.send(str(message.author.mention) +
+                                            " There are no statistics about d20 rolls to show yet...")
+                    return
+                # end if
                 print("[" + str(message.author) + "] Displaying lifetime stats")
                 # Print to console
                 print_stats()
 
                 # Generate image
                 if target == 'Total':
-                    gen_stats_img(stats=lifetime_stats[target], name=target, lifetime=True)
+                    gen_stats_img(stats=lifetime_stats, name=target, lifetime=True)
                 else:
-                    if target.nick == None:
-                        gen_stats_img(stats=lifetime_stats[str(target.id)], name=target.name, lifetime=True)
-                    else:
-                        gen_stats_img(stats=lifetime_stats[str(target.id)], name=target.nick, lifetime=True)
+                    gen_stats_img(stats=lifetime_stats[str(target.id)], name=target.display_name, lifetime=True)
                     # end if
                 # end if
-
-                # Update lifetime stats file
-                update_lifetime_stats()
 
                 # Send image to Discord
                 await message.channel.send(file=discord.File('stats.png'))
@@ -922,50 +974,54 @@ async def on_message(message):
         min_possible += 1
 
         # Update lifetime total stats
-        lifetime_stats["Total"][d20s[0] - 1] += 1
-        lifetime_stats["Total"][d20s[1] - 1] += 1
+        lifetime_stats["Total"]['Rolls'][d20s[0] - 1] += 1
+        lifetime_stats["Total"]['Rolls'][d20s[1] - 1] += 1
 
         # Update (or create) lifetime stats of message author
         if str(message.author.id) not in lifetime_stats:
-            lifetime_stats[str(message.author.id)] = [0]*20
-            lifetime_stats[str(message.author.id)][d20s[0] - 1] += 1
-            lifetime_stats[str(message.author.id)][d20s[1] - 1] += 1
+            lifetime_stats[str(message.author.id)] = {}
+            lifetime_stats[str(message.author.id)]['Name'] = message.author.name
+            lifetime_stats[str(message.author.id)]['Rolls'] = [0]*20
+            lifetime_stats[str(message.author.id)]['Rolls'][d20s[0] - 1] += 1
+            lifetime_stats[str(message.author.id)]['Rolls'][d20s[1] - 1] += 1
         else:
-            lifetime_stats[str(message.author.id)][d20s[0] - 1] += 1
-            lifetime_stats[str(message.author.id)][d20s[1] - 1] += 1
+            lifetime_stats[str(message.author.id)]['Rolls'][d20s[0] - 1] += 1
+            lifetime_stats[str(message.author.id)]['Rolls'][d20s[1] - 1] += 1
         # end if
 
         # Update session total stats
-        session_stats["Total"][d20s[0] - 1] += 1
-        session_stats["Total"][d20s[1] - 1] += 1
+        session_stats["Total"]['Rolls'][d20s[0] - 1] += 1
+        session_stats["Total"]['Rolls'][d20s[1] - 1] += 1
 
         # Update (or create) session stats of message author
         if str(message.author.id) not in session_stats:
-            session_stats[str(message.author.id)] = [0]*20
-            session_stats[str(message.author.id)][d20s[0] - 1] += 1
-            session_stats[str(message.author.id)][d20s[1] - 1] += 1
+            session_stats[str(message.author.id)] = {}
+            session_stats[str(message.author.id)]['Name'] = message.author.name
+            session_stats[str(message.author.id)]['Rolls'] = [0]*20
+            session_stats[str(message.author.id)]['Rolls'][d20s[0] - 1] += 1
+            session_stats[str(message.author.id)]['Rolls'][d20s[1] - 1] += 1
         else:
-            session_stats[str(message.author.id)][d20s[0] - 1] += 1
-            session_stats[str(message.author.id)][d20s[1] - 1] += 1
+            session_stats[str(message.author.id)]['Rolls'][d20s[0] - 1] += 1
+            session_stats[str(message.author.id)]['Rolls'][d20s[1] - 1] += 1
         # end if
 
         # Handle (dis)advantage
         if disadvantage:
             total_result = min(d20s)
             if total_result == 20:
-                footer = f"NATURAL 20\nSession #{session_stats[str(message.author.id)][20 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)][20 - 1]}"
+                footer = f"NATURAL 20\nSession #{session_stats[str(message.author.id)]['Rolls'][20 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][20 - 1]}"
                 embed.set_thumbnail(url=nat20_img)
             elif total_result == 1:
-                footer = f"NATURAL 1\nSession #{session_stats[str(message.author.id)][1 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)][1 - 1]}"
+                footer = f"NATURAL 1\nSession #{session_stats[str(message.author.id)]['Rolls'][1 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][1 - 1]}"
                 embed.set_thumbnail(url=nat1_img)
             # end if/elif
         else:
             total_result = max(d20s)
             if total_result == 20:
-                footer = f"NATURAL 20\nSession #{session_stats[str(message.author.id)][20 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)][20 - 1]}"
+                footer = f"NATURAL 20\nSession #{session_stats[str(message.author.id)]['Rolls'][20 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][20 - 1]}"
                 embed.set_thumbnail(url=nat20_img)
             elif total_result == 1:
-                footer = f"NATURAL 1\nSession #{session_stats[str(message.author.id)][1 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)][1 - 1]}"
+                footer = f"NATURAL 1\nSession #{session_stats[str(message.author.id)]['Rolls'][1 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][1 - 1]}"
                 embed.set_thumbnail(url=nat1_img)
             # end if/elif
         # end if/else
@@ -1051,25 +1107,31 @@ async def on_message(message):
                     d20_stats[result - 1] += 1
 
                     # Update lifetime total stats
-                    lifetime_stats["Total"][result - 1] += 1
+                    lifetime_stats["Total"]['Rolls'][result - 1] += 1
 
                     # Update (or create) lifetime stats of message author
                     if str(message.author.id) not in lifetime_stats:
-                        lifetime_stats[str(message.author.id)] = [0]*20
-                        lifetime_stats[str(message.author.id)][result - 1] += 1
+                        lifetime_stats[str(message.author.id)] = {}
+                        lifetime_stats[str(message.author.id)]['Name'] = message.author.name
+                        lifetime_stats[str(message.author.id)]['Rolls'] = [0]*20
+                        lifetime_stats[str(message.author.id)]['Rolls'][result - 1] += 1
                     else:
-                        lifetime_stats[str(message.author.id)][result - 1] += 1
+                        lifetime_stats[str(message.author.id)]['Name'] = message.author.name
+                        lifetime_stats[str(message.author.id)]['Rolls'][result - 1] += 1
                     # end if
 
                     # Update session total stats
-                    session_stats["Total"][result - 1] += 1
+                    session_stats["Total"]['Rolls'][result - 1] += 1
 
                     # Update (or create) session stats of message author
                     if str(message.author.id) not in session_stats:
-                        session_stats[str(message.author.id)] = [0]*20
-                        session_stats[str(message.author.id)][result - 1] += 1
+                        session_stats[str(message.author.id)] = {}
+                        session_stats[str(message.author.id)]['Name'] = message.author.name
+                        session_stats[str(message.author.id)]['Rolls'] = [0]*20
+                        session_stats[str(message.author.id)]['Rolls'][result - 1] += 1
                     else:
-                        session_stats[str(message.author.id)][result - 1] += 1
+                        session_stats[str(message.author.id)]['Name'] = message.author.name
+                        session_stats[str(message.author.id)]['Rolls'][result - 1] += 1
                     # end if
                 # end if
             # end for
@@ -1442,32 +1504,38 @@ async def on_message(message):
             d20_stats[result - 1] += 1
 
             # Update lifetime total stats
-            lifetime_stats["Total"][result - 1] += 1
+            lifetime_stats["Total"]['Rolls'][result - 1] += 1
 
             # Update (or create) lifetime stats of message author
             if str(message.author.id) not in lifetime_stats:
-                lifetime_stats[str(message.author.id)] = [0]*20
-                lifetime_stats[str(message.author.id)][result - 1] += 1
+                lifetime_stats[str(message.author.id)] = {}
+                lifetime_stats[str(message.author.id)]['Name'] = message.author.name
+                lifetime_stats[str(message.author.id)]['Rolls'] = [0]*20
+                lifetime_stats[str(message.author.id)]['Rolls'][result - 1] += 1
             else:
-                lifetime_stats[str(message.author.id)][result - 1] += 1
+                lifetime_stats[str(message.author.id)]['Name'] = message.author.name
+                lifetime_stats[str(message.author.id)]['Rolls'][result - 1] += 1
             # end if
 
             # Update session total stats
-            session_stats["Total"][result - 1] += 1
+            session_stats["Total"]['Rolls'][result - 1] += 1
 
             # Update (or create) session stats of message author
             if str(message.author.id) not in session_stats:
-                session_stats[str(message.author.id)] = [0]*20
-                session_stats[str(message.author.id)][result - 1] += 1
+                session_stats[str(message.author.id)] = {}
+                session_stats[str(message.author.id)]['Rolls'] = [0]*20
+                session_stats[str(message.author.id)]['Name'] = message.author.name
+                session_stats[str(message.author.id)]['Rolls'][result - 1] += 1
             else:
-                session_stats[str(message.author.id)][result - 1] += 1
+                session_stats[str(message.author.id)]['Name'] = message.author.name
+                session_stats[str(message.author.id)]['Rolls'][result - 1] += 1
             # end if
 
             if result == 20:
-                footer = f"NATURAL 20\nSession #{session_stats[str(message.author.id)][20 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)][20 - 1]}"
+                footer = f"NATURAL 20\nSession #{session_stats[str(message.author.id)]['Rolls'][20 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][20 - 1]}"
                 embed.set_thumbnail(url=nat20_img)
             elif result == 1:
-                footer = f"NATURAL 1\nSession #{session_stats[str(message.author.id)][1 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)][1 - 1]}"
+                footer = f"NATURAL 1\nSession #{session_stats[str(message.author.id)]['Rolls'][1 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][1 - 1]}"
                 embed.set_thumbnail(url=nat1_img)
             # end if/elif
 
@@ -1535,25 +1603,31 @@ async def on_message(message):
                     d20_stats[result - 1] += 1
 
                     # Update lifetime total stats
-                    lifetime_stats["Total"][result - 1] += 1
+                    lifetime_stats["Total"]['Rolls'][result - 1] += 1
 
                     # Update (or create) lifetime stats of message author
                     if str(message.author.id) not in lifetime_stats:
-                        lifetime_stats[str(message.author.id)] = [0]*20
-                        lifetime_stats[str(message.author.id)][result - 1] += 1
+                        lifetime_stats[str(message.author.id)] = {}
+                        lifetime_stats[str(message.author.id)]['Name'] = message.author.name
+                        lifetime_stats[str(message.author.id)]['Rolls'] = [0]*20
+                        lifetime_stats[str(message.author.id)]['Rolls'][result - 1] += 1
                     else:
-                        lifetime_stats[str(message.author.id)][result - 1] += 1
+                        lifetime_stats[str(message.author.id)]['Name'] = message.author.name
+                        lifetime_stats[str(message.author.id)]['Rolls'][result - 1] += 1
                     # end if
 
                     # Update session total stats
-                    session_stats["Total"][result - 1] += 1
+                    session_stats["Total"]['Rolls'][result - 1] += 1
 
                     # Update (or create) session stats of message author
                     if str(message.author.id) not in session_stats:
-                        session_stats[str(message.author.id)] = [0]*20
-                        session_stats[str(message.author.id)][result - 1] += 1
+                        session_stats[str(message.author.id)] = {}
+                        session_stats[str(message.author.id)]['Name'] = message.author.name
+                        session_stats[str(message.author.id)]['Rolls'] = [0]*20
+                        session_stats[str(message.author.id)]['Rolls'][result - 1] += 1
                     else:
-                        session_stats[str(message.author.id)][result - 1] += 1
+                        session_stats[str(message.author.id)]['Name'] = message.author.name
+                        session_stats[str(message.author.id)]['Rolls'][result - 1] += 1
                     # end if
                 # end if
             # end for
@@ -1622,25 +1696,31 @@ async def on_message(message):
                     d20_stats[result - 1] += 1
 
                     # Update lifetime total stats
-                    lifetime_stats["Total"][result - 1] += 1
+                    lifetime_stats["Total"]['Rolls'][result - 1] += 1
 
                     # Update (or create) lifetime stats of message author
                     if str(message.author.id) not in lifetime_stats:
-                        lifetime_stats[str(message.author.id)] = [0]*20
-                        lifetime_stats[str(message.author.id)][result - 1] += 1
+                        lifetime_stats[str(message.author.id)] = {}
+                        lifetime_stats[str(message.author.id)]['Name'] = message.author.name
+                        lifetime_stats[str(message.author.id)]['Rolls'] = [0]*20
+                        lifetime_stats[str(message.author.id)]['Rolls'][result - 1] += 1
                     else:
-                        lifetime_stats[str(message.author.id)][result - 1] += 1
+                        lifetime_stats[str(message.author.id)]['Name'] = message.author.name
+                        lifetime_stats[str(message.author.id)]['Rolls'][result - 1] += 1
                     # end if
 
                     # Update session total stats
-                    session_stats["Total"][result - 1] += 1
+                    session_stats["Total"]['Rolls'][result - 1] += 1
 
                     # Update (or create) session stats of message author
                     if str(message.author.id) not in session_stats:
-                        session_stats[str(message.author.id)] = [0]*20
-                        session_stats[str(message.author.id)][result - 1] += 1
+                        session_stats[str(message.author.id)] = {}
+                        session_stats[str(message.author.id)]['Name'] = message.author.name
+                        session_stats[str(message.author.id)]['Rolls'] = [0]*20
+                        session_stats[str(message.author.id)]['Rolls'][result - 1] += 1
                     else:
-                        session_stats[str(message.author.id)][result - 1] += 1
+                        session_stats[str(message.author.id)]['Name'] = message.author.name
+                        session_stats[str(message.author.id)]['Rolls'][result - 1] += 1
                     # end if
                 # end if
             # end for
