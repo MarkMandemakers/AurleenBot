@@ -33,6 +33,8 @@ BOT_TOKEN = ""
 PREFIX = ""
 discord_data = ""
 preset_data = ""
+lifetime_stats = ""
+session_stats = {}
 presets = []
 probs = []
 DEV_MODE = False # Disables graph output, adjusts status, etc.
@@ -94,6 +96,27 @@ except Exception as e:
     print(f"Error, probably no presets.json found: {e}")
 # end try except
 
+# Load lifetime stats from json file, or create if not available
+if os.path.isfile(f"{data_folder}lifetime_stats.json"):
+    try:
+        with open(data_folder+'lifetime_stats.json') as f2:
+            lifetime_stats = json.load(f2)
+            f2.close()
+    except Exception as e:
+        print(f"Error, probably no lifetime_stats.json found: {e}")
+    # end try except
+else:
+    # If discord.json doesn't exist, create the file
+    try:
+        fp = open(f"{data_folder}lifetime_stats.json", "x")
+        lifetime_stats = {}
+        lifetime_stats['Total'] = [0]*20
+        fp.close()
+    except Exception as e:
+        print(f"Cannot create lifetime_stats.json: {e}")
+    # end try except
+# end if
+
 
 # Update Discord.json data
 def update_discord():
@@ -110,6 +133,21 @@ def update_discord():
         # end with
     except Exception as e:
         print("Error, probably no discord.json found: " + str(e))
+    # end try/except
+# end def
+
+
+# Update lifetime stats file
+def update_lifetime_stats():
+    # print(lifetime_stats)
+    try:
+        with open(swd+"lifetime_stats.json", 'w') as fp:
+            json.dump(lifetime_stats, fp, indent=2)
+            fp.close()
+            print("Updated lifetime_stats.json")
+        # end with
+    except Exception as e:
+        print("Error, probably no lifetime_stats.json found: " + str(e))
     # end try/except
 # end def
 
@@ -141,18 +179,19 @@ def print_stats():
 
 
 # Generate statistics image
-def gen_stats_img(save=False):
-    global d20_stats
-    global d20_rolled
-
+def gen_stats_img(stats, name, save=False, lifetime=False):
     x = range(1, 21)
     plt.clf()
-    plt.bar(x, d20_stats)
-    plt.hlines(d20_rolled/20, 0.5, 20.5, linestyles='dashed')
+    plt.bar(x, stats)
+    plt.hlines(sum(stats)/20, 0.5, 20.5, linestyles='dashed')
     plt.xticks(x)
     plt.xlabel("d20 Value")
     plt.ylabel("Frequency")
-    plt.title("Distribution after " + str(d20_rolled) + " d20 rolls")
+    if lifetime:
+        plt.title(f"Distribution after {sum(stats)} d20 rolls ({name} Lifetime)")
+    else:
+        plt.title(f"Distribution after {sum(stats)} d20 rolls ({name} Session)")
+    # end if
     plt.xlim(0.5, len(x) + .5)
     plt.savefig("stats.png")
     # plt.show()
@@ -214,6 +253,7 @@ def load_json():
     global data
     global discord_data
     global preset_data
+    global lifetime_stats
     global BOT_TOKEN
     global ADMINS
     global PREFIX
@@ -241,6 +281,13 @@ def load_json():
             f.close()
     except Exception as e:
         print("Error, probably no presets.json found: " + str(e))
+    # end try except
+    try:
+        with open(swd+'lifetime_stats.json') as f:
+            lifetime_stats = json.load(f)
+            f.close()
+    except Exception as e:
+        print("Error, probably no lifetime_stats.json found: " + str(e))
     # end try except
 # end def
 
@@ -307,6 +354,9 @@ def dice_prob(target, type, sides):
 # When done setting up the bot user in Discord
 @client.event
 async def on_ready():
+    global lifetime_stats
+    global session_stats
+
     # print(client.guilds)
     guild_list = []
     for g in client.guilds:
@@ -316,8 +366,13 @@ async def on_ready():
         # end if
     # end for
 
+    # Setup session stats
+    session_stats = {}
+    session_stats['Total'] = [0]*20
+
     convert_presets()
     update_discord()
+    update_lifetime_stats()
 
     print(f"Ready on Discord as {client.user}, watching {len(discord_data)} servers {guild_list}")
     # await client.change_presence(activity=discord.Game(name='Ready to roll!'))
@@ -339,6 +394,7 @@ async def on_guild_join(guild):
         add_server(guild)
     # end if
     update_discord()
+    update_lifetime_stats()
 # end def
 
 
@@ -351,6 +407,8 @@ async def on_message(message):
     global prev_call
     global d20_stats
     global d20_rolled
+    global lifetime_stats
+    global session_stats
     global ADMINS
     global PREFIX
     msg = ""
@@ -388,9 +446,10 @@ async def on_message(message):
         if msg.startswith(("quit", "stop", "exit")):
             print("[" + str(message.author) + "] Shutting down...")
             if not DEV_MODE and d20_rolled > 1:
-                gen_stats_img(True)
+                gen_stats_img(stats=session_stats['Total'], name='Total', save=True)
             # end if
             update_discord()
+            update_lifetime_stats()
             await client.change_presence(status=discord.Status.dnd, afk=True, activity=discord.Game(name='OFFLINE'))
             await message.add_reaction("👋")
             await client.close()
@@ -401,11 +460,13 @@ async def on_message(message):
         if msg.startswith("reset"):
             print("[" + str(message.author) + "] Resetting...")
             if not DEV_MODE and d20_rolled > 0:
-                gen_stats_img(True)
+                gen_stats_img(stats=session_stats['Total'], name='Total', save=True)
             # end if
             rolled = 0
             d20_stats = [0] * 20
             d20_rolled = 0
+            session_stats = {}
+            session_stats['Total'] = [0]*20
             # print(d20_rolled)
             # print(d20_stats)
             print_stats()
@@ -414,6 +475,7 @@ async def on_message(message):
             # Load data from json files (same as reload command)
             load_json()
             print("Reloaded data.json & discord.json")
+            update_lifetime_stats()
             await message.add_reaction("🔄")
             # await message.add_reaction("👍")
             # await message.add_reaction("✅")
@@ -546,29 +608,7 @@ async def on_message(message):
             return
         # end if - unwatch channel
 
-        # D20 STATISTICS
-        if msg.startswith("stat"):
-            if d20_rolled > 0:
-                print("[" + str(message.author) + "] Displaying stats")
-                # Print to console
-                print_stats()
-
-                # Generate image
-                gen_stats_img()
-
-                # Send image to Discord
-                await message.channel.send(file=discord.File('stats.png'))
-                return
-            else:
-                print("[" + str(message.author) + "] No stats yet")
-                await message.channel.send(str(message.author.mention) +
-                                        " There are no statistics about d20 rolls to show yet...")
-                # Do not proceed with message processing
-                return
-            # end if/else
-        # end if - d20 statistics
-
-    elif msg.startswith(("quit", "stop", "exit", "reset", "watch", "unwatch", "stat", "admin")):
+    elif msg.startswith(("quit", "stop", "exit", "reset", "watch", "unwatch", "admin")):
         await message.channel.send(f"{str(message.author.mention)} Sorry, but you are not an admin...")
     # end if - ADMIN COMMANDS
 
@@ -613,6 +653,7 @@ async def on_message(message):
     if msg.startswith("reload"):
         # Load data from json files
         load_json()
+        update_lifetime_stats()
         await message.add_reaction("🔄")
         print("Reloaded data.json & discord.json")
         return
@@ -630,6 +671,77 @@ async def on_message(message):
         return
     # end if
 
+
+    # D20 STATISTICS
+    if msg.startswith(("stat", "ses", "life")):
+        if len(message.mentions) < 1:
+            target = "Total"
+        elif len(message.mentions) == 1:
+            target = message.mentions[0]
+        else:
+            target = "Total"
+        # end if
+
+        # Session rolls
+        if ("life" not in msg and "lt" not in msg) or "ses" in msg:
+            print(msg)
+            if target == 'Total' or str(target.id) in session_stats:
+                print("[" + str(message.author) + "] Displaying stats")
+                # Print to console
+                print_stats()
+
+                # Generate image
+                if target == 'Total':
+                    gen_stats_img(stats=session_stats[target], name=target)
+                else:
+                    if target.nick == None:
+                        gen_stats_img(stats=session_stats[str(target.id)], name=target.name)
+                    else:
+                        gen_stats_img(stats=session_stats[str(target.id)], name=target.nick)
+                    # end if
+                # end if
+
+                # Update lifetime stats file
+                update_lifetime_stats()
+
+                # Send image to Discord
+                await message.channel.send(file=discord.File('stats.png'))
+            else:
+                print("[" + str(message.author) + "] No stats yet")
+                await message.channel.send(str(message.author.mention) +
+                                        " There are no statistics about d20 rolls to show yet...")
+            # end if/else
+        elif "life" in msg or "lt" not in message:
+        # Lifetime rolls
+            if target == 'Total' or str(target.id) in lifetime_stats:
+                print("[" + str(message.author) + "] Displaying lifetime stats")
+                # Print to console
+                print_stats()
+
+                # Generate image
+                if target == 'Total':
+                    gen_stats_img(stats=lifetime_stats[target], name=target, lifetime=True)
+                else:
+                    if target.nick == None:
+                        gen_stats_img(stats=lifetime_stats[str(target.id)], name=target.name, lifetime=True)
+                    else:
+                        gen_stats_img(stats=lifetime_stats[str(target.id)], name=target.nick, lifetime=True)
+                    # end if
+                # end if
+
+                # Update lifetime stats file
+                update_lifetime_stats()
+
+                # Send image to Discord
+                await message.channel.send(file=discord.File('stats.png'))
+            else:
+                print("[" + str(message.author) + "] No lifetime stats yet")
+                await message.channel.send(str(message.author.mention) +
+                                        " There are no lifetime statistics about d20 rolls to show yet...")
+            # end if/else
+        # end if
+        return
+    # end if - d20 statistics
 
 
     ###########################################################################################################
@@ -802,31 +914,61 @@ async def on_message(message):
 
         # Roll base dice at (dis)advantage
         d20s = roll(20, 2)
-        if disadvantage:
-            total_result = min(d20s)
-            if total_result == 20:
-                footer = "NATURAL 20"
-                embed.set_thumbnail(url=nat20_img)
-            elif total_result == 1:
-                footer = "NATURAL 1"
-                embed.set_thumbnail(url=nat1_img)
-            # end if/elif
-        else:
-            total_result = max(d20s)
-            if total_result == 20:
-                footer = "NATURAL 20"
-                embed.set_thumbnail(url=nat20_img)
-            elif total_result == 1:
-                footer = "NATURAL 1"
-                embed.set_thumbnail(url=nat1_img)
-            # end if/elif
-        # end if/else
 
         # Store statistics
         d20_rolled += 2
         d20_stats[d20s[0] - 1] += 1
         d20_stats[d20s[1] - 1] += 1
         min_possible += 1
+
+        # Update lifetime total stats
+        lifetime_stats["Total"][d20s[0] - 1] += 1
+        lifetime_stats["Total"][d20s[1] - 1] += 1
+
+        # Update (or create) lifetime stats of message author
+        if str(message.author.id) not in lifetime_stats:
+            lifetime_stats[str(message.author.id)] = [0]*20
+            lifetime_stats[str(message.author.id)][d20s[0] - 1] += 1
+            lifetime_stats[str(message.author.id)][d20s[1] - 1] += 1
+        else:
+            lifetime_stats[str(message.author.id)][d20s[0] - 1] += 1
+            lifetime_stats[str(message.author.id)][d20s[1] - 1] += 1
+        # end if
+
+        # Update session total stats
+        session_stats["Total"][d20s[0] - 1] += 1
+        session_stats["Total"][d20s[1] - 1] += 1
+
+        # Update (or create) session stats of message author
+        if str(message.author.id) not in session_stats:
+            session_stats[str(message.author.id)] = [0]*20
+            session_stats[str(message.author.id)][d20s[0] - 1] += 1
+            session_stats[str(message.author.id)][d20s[1] - 1] += 1
+        else:
+            session_stats[str(message.author.id)][d20s[0] - 1] += 1
+            session_stats[str(message.author.id)][d20s[1] - 1] += 1
+        # end if
+
+        # Handle (dis)advantage
+        if disadvantage:
+            total_result = min(d20s)
+            if total_result == 20:
+                footer = f"NATURAL 20\nSession #{session_stats[str(message.author.id)][20 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)][20 - 1]}"
+                embed.set_thumbnail(url=nat20_img)
+            elif total_result == 1:
+                footer = f"NATURAL 1\nSession #{session_stats[str(message.author.id)][1 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)][1 - 1]}"
+                embed.set_thumbnail(url=nat1_img)
+            # end if/elif
+        else:
+            total_result = max(d20s)
+            if total_result == 20:
+                footer = f"NATURAL 20\nSession #{session_stats[str(message.author.id)][20 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)][20 - 1]}"
+                embed.set_thumbnail(url=nat20_img)
+            elif total_result == 1:
+                footer = f"NATURAL 1\nSession #{session_stats[str(message.author.id)][1 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)][1 - 1]}"
+                embed.set_thumbnail(url=nat1_img)
+            # end if/elif
+        # end if/else
 
         # Highlight the selected result
         if d20s[0] == total_result:
@@ -907,6 +1049,28 @@ async def on_message(message):
                 if dice_type[i] == 20:
                     d20_rolled += 1
                     d20_stats[result - 1] += 1
+
+                    # Update lifetime total stats
+                    lifetime_stats["Total"][result - 1] += 1
+
+                    # Update (or create) lifetime stats of message author
+                    if str(message.author.id) not in lifetime_stats:
+                        lifetime_stats[str(message.author.id)] = [0]*20
+                        lifetime_stats[str(message.author.id)][result - 1] += 1
+                    else:
+                        lifetime_stats[str(message.author.id)][result - 1] += 1
+                    # end if
+
+                    # Update session total stats
+                    session_stats["Total"][result - 1] += 1
+
+                    # Update (or create) session stats of message author
+                    if str(message.author.id) not in session_stats:
+                        session_stats[str(message.author.id)] = [0]*20
+                        session_stats[str(message.author.id)][result - 1] += 1
+                    else:
+                        session_stats[str(message.author.id)][result - 1] += 1
+                    # end if
                 # end if
             # end for
         # end for
@@ -1273,17 +1437,39 @@ async def on_message(message):
             embed.add_field(name="d20", value=result, inline=True)
             fields += 1
 
-            if result == 20:
-                footer = "NATURAL 20"
-                embed.set_thumbnail(url=nat20_img)
-            elif result == 1:
-                footer = "NATURAL 1"
-                embed.set_thumbnail(url=nat1_img)
-            # end if/elif
-
             # Add d20 statistics
             d20_rolled += 1
             d20_stats[result - 1] += 1
+
+            # Update lifetime total stats
+            lifetime_stats["Total"][result - 1] += 1
+
+            # Update (or create) lifetime stats of message author
+            if str(message.author.id) not in lifetime_stats:
+                lifetime_stats[str(message.author.id)] = [0]*20
+                lifetime_stats[str(message.author.id)][result - 1] += 1
+            else:
+                lifetime_stats[str(message.author.id)][result - 1] += 1
+            # end if
+
+            # Update session total stats
+            session_stats["Total"][result - 1] += 1
+
+            # Update (or create) session stats of message author
+            if str(message.author.id) not in session_stats:
+                session_stats[str(message.author.id)] = [0]*20
+                session_stats[str(message.author.id)][result - 1] += 1
+            else:
+                session_stats[str(message.author.id)][result - 1] += 1
+            # end if
+
+            if result == 20:
+                footer = f"NATURAL 20\nSession #{session_stats[str(message.author.id)][20 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)][20 - 1]}"
+                embed.set_thumbnail(url=nat20_img)
+            elif result == 1:
+                footer = f"NATURAL 1\nSession #{session_stats[str(message.author.id)][1 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)][1 - 1]}"
+                embed.set_thumbnail(url=nat1_img)
+            # end if/elif
 
             total_result += result
             max_possible += 20
@@ -1347,6 +1533,28 @@ async def on_message(message):
                 if dice_type[0] == 20:
                     d20_rolled += 1
                     d20_stats[result - 1] += 1
+
+                    # Update lifetime total stats
+                    lifetime_stats["Total"][result - 1] += 1
+
+                    # Update (or create) lifetime stats of message author
+                    if str(message.author.id) not in lifetime_stats:
+                        lifetime_stats[str(message.author.id)] = [0]*20
+                        lifetime_stats[str(message.author.id)][result - 1] += 1
+                    else:
+                        lifetime_stats[str(message.author.id)][result - 1] += 1
+                    # end if
+
+                    # Update session total stats
+                    session_stats["Total"][result - 1] += 1
+
+                    # Update (or create) session stats of message author
+                    if str(message.author.id) not in session_stats:
+                        session_stats[str(message.author.id)] = [0]*20
+                        session_stats[str(message.author.id)][result - 1] += 1
+                    else:
+                        session_stats[str(message.author.id)][result - 1] += 1
+                    # end if
                 # end if
             # end for
         # end if/else
@@ -1412,6 +1620,28 @@ async def on_message(message):
                 if dice_type[i] == 20:
                     d20_rolled += 1
                     d20_stats[result - 1] += 1
+
+                    # Update lifetime total stats
+                    lifetime_stats["Total"][result - 1] += 1
+
+                    # Update (or create) lifetime stats of message author
+                    if str(message.author.id) not in lifetime_stats:
+                        lifetime_stats[str(message.author.id)] = [0]*20
+                        lifetime_stats[str(message.author.id)][result - 1] += 1
+                    else:
+                        lifetime_stats[str(message.author.id)][result - 1] += 1
+                    # end if
+
+                    # Update session total stats
+                    session_stats["Total"][result - 1] += 1
+
+                    # Update (or create) session stats of message author
+                    if str(message.author.id) not in session_stats:
+                        session_stats[str(message.author.id)] = [0]*20
+                        session_stats[str(message.author.id)][result - 1] += 1
+                    else:
+                        session_stats[str(message.author.id)][result - 1] += 1
+                    # end if
                 # end if
             # end for
         # end for
