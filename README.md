@@ -18,7 +18,7 @@ AurleenBot is a Discord bot for dice rolling in (digital) D&D Games.
 
 ### Installation & Usage
 AurleenBot was built in Python 3.7.x and requires the following dependencies:
-- [discord.py](https://github.com/Rapptz/discord.py ) (built on version 1.4.1)
+- [discord.py](https://github.com/Rapptz/discord.py ) (version >= 1.5)
 - [json](https://docs.python.org/3/library/json.html )
 - [re](https://docs.python.org/3/library/re.html )
 - [time](https://docs.python.org/3/library/time.html )

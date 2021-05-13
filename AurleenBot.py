@@ -14,7 +14,9 @@ import math
 print("Starting up...") # STarting
 
 # Setup global variables
-client = discord.Client()
+intents = discord.Intents.default()
+intents.members = True
+client = discord.Client(intents=intents)
 nat20_img = "https://i.imgur.com/5wigsBM.png" # color; blank: https://i.imgur.com/vRMbnn9.png
 nat1_img = "https://i.imgur.com/jfV3bEg.png" # color; blank: https://i.imgur.com/zB9gKje.png
 rolled = 0
@@ -37,7 +39,7 @@ lifetime_stats = ""
 session_stats = {}
 presets = []
 probs = []
-DEV_MODE = False # Disables graph output, adjusts status, etc.
+DEV_MODE = True # Disables graph output, adjusts status, etc.
 
 # Load loc.json to find location of settings files
 try:
@@ -720,19 +722,24 @@ async def on_message(message):
         else:
             target = "Total"
         # end if
+        print(target)
 
         # Update lifetime stats file
         update_lifetime_stats()
 
         # Session rolls
         if ("life" not in msg and "lt" not in msg) or "ses" in msg:
+            # Verify if the target is total or a user with rolls
             if target == 'Total' or str(target.id) in session_stats:
+                # Check if there have been any rolls in total
                 if target == 'Total' and sum(session_stats['Total']['Rolls']) <= 0:
                     print("[" + str(message.author) + "] No stats yet")
                     await message.channel.send(str(message.author.mention) +
                                             " There are no statistics about d20 rolls to show yet...")
                     return
                 # end if
+
+                # Check if the target (not total) has done any rolls
                 if target != "Total" and (str(target.id)) in session_stats and sum(session_stats[str(target.id)]["Rolls"]) <= 0:
                     print("[" + str(message.author) + "] No stats yet")
                     await message.channel.send(str(message.author.mention) +
@@ -740,14 +747,29 @@ async def on_message(message):
                     return
                 # end if
                 print("[" + str(message.author) + "] Displaying stats")
+                
                 # Print to console
                 print_stats()
 
+                # Check which guild members have statistics, and only include those
+                stats_subset = {}
+                stats_subset['Total'] = {
+                    'Name': 'Total',
+                    'Rolls': [0]*20
+                }
+                for member in message.guild.members:
+                    if str(member.id) in lifetime_stats:
+                        stats_subset[str(member.id)] = lifetime_stats[str(member.id)]
+                        stats_subset[str(member.id)]['Name'] = member.display_name
+                        stats_subset['Total']['Rolls'] = [stats_subset['Total']['Rolls'][i] + lifetime_stats[str(member.id)]['Rolls'][i] for i in range(len(stats_subset['Total']['Rolls']))]
+                    # end if
+                # end for
+
                 # Generate image
                 if target == 'Total':
-                    gen_stats_img(stats=session_stats, name=target)
+                    gen_stats_img(stats=stats_subset, name=target)
                 else:
-                    gen_stats_img(stats=session_stats[str(target.id)], name=target.display_name)
+                    gen_stats_img(stats=stats_subset[str(target.id)], name=target.display_name)
                 # end if
 
                 # Send image to Discord
@@ -759,13 +781,17 @@ async def on_message(message):
             # end if/else
         elif "life" in msg or "lt" not in message:
         # Lifetime rolls
+            # Verify if the target is total or a user with rolls
             if target == 'Total' or str(target.id) in lifetime_stats:
+                # Check if there have been any rolls in total
                 if target == 'Total' and sum(lifetime_stats['Total']['Rolls']) <= 0:
                     print("[" + str(message.author) + "] No stats yet")
                     await message.channel.send(str(message.author.mention) +
                                             " There are no statistics about d20 rolls to show yet...")
                     return
                 # end if
+
+                # Check if the target (not total) has done any rolls
                 if target != "Total" and (str(target.id)) in lifetime_stats and sum(lifetime_stats[str(target.id)]["Rolls"]) <= 0:
                     print("[" + str(message.author) + "] No stats yet")
                     await message.channel.send(str(message.author.mention) +
@@ -773,14 +799,29 @@ async def on_message(message):
                     return
                 # end if
                 print("[" + str(message.author) + "] Displaying lifetime stats")
+
                 # Print to console
                 print_stats()
 
+                # Check which guild members have statistics, and only include those
+                stats_subset = {}
+                stats_subset['Total'] = {
+                    'Name': 'Total',
+                    'Rolls': [0]*20
+                }
+                for member in message.guild.members:
+                    if str(member.id) in lifetime_stats:
+                        stats_subset[str(member.id)] = lifetime_stats[str(member.id)]
+                        stats_subset[str(member.id)]['Name'] = member.display_name
+                        stats_subset['Total']['Rolls'] = [stats_subset['Total']['Rolls'][i] + lifetime_stats[str(member.id)]['Rolls'][i] for i in range(len(stats_subset['Total']['Rolls']))]
+                    # end if
+                # end for
+
                 # Generate image
                 if target == 'Total':
-                    gen_stats_img(stats=lifetime_stats, name=target, lifetime=True)
+                    gen_stats_img(stats=stats_subset, name=target, lifetime=True)
                 else:
-                    gen_stats_img(stats=lifetime_stats[str(target.id)], name=target.display_name, lifetime=True)
+                    gen_stats_img(stats=stats_subset[str(target.id)], name=target.display_name, lifetime=True)
                     # end if
                 # end if
 
@@ -1644,7 +1685,6 @@ async def on_message(message):
                         lifetime_stats[str(message.author.id)]['Rolls'] = [0]*20
                         lifetime_stats[str(message.author.id)]['Rolls'][result - 1] += 1
                     else:
-                        lifetime_stats[str(message.author.id)]['Name'] = message.author.name
                         lifetime_stats[str(message.author.id)]['Rolls'][result - 1] += 1
                     # end if
 
@@ -1658,7 +1698,6 @@ async def on_message(message):
                         session_stats[str(message.author.id)]['Rolls'] = [0]*20
                         session_stats[str(message.author.id)]['Rolls'][result - 1] += 1
                     else:
-                        session_stats[str(message.author.id)]['Name'] = message.author.name
                         session_stats[str(message.author.id)]['Rolls'][result - 1] += 1
                     # end if
                 # end if
@@ -1737,7 +1776,6 @@ async def on_message(message):
                         lifetime_stats[str(message.author.id)]['Rolls'] = [0]*20
                         lifetime_stats[str(message.author.id)]['Rolls'][result - 1] += 1
                     else:
-                        lifetime_stats[str(message.author.id)]['Name'] = message.author.name
                         lifetime_stats[str(message.author.id)]['Rolls'][result - 1] += 1
                     # end if
 
@@ -1751,7 +1789,6 @@ async def on_message(message):
                         session_stats[str(message.author.id)]['Rolls'] = [0]*20
                         session_stats[str(message.author.id)]['Rolls'][result - 1] += 1
                     else:
-                        session_stats[str(message.author.id)]['Name'] = message.author.name
                         session_stats[str(message.author.id)]['Rolls'][result - 1] += 1
                     # end if
                 # end if
