@@ -41,7 +41,7 @@ lifetime_stats = ""
 session_stats = {}
 presets = []
 probs = []
-DEV_MODE = True # Disables graph output, adjusts status, etc.
+DEV_MODE = False # Disables graph output, adjusts status, etc.
 
 # Load loc.json to find location of settings files
 try:
@@ -115,7 +115,7 @@ else:
         fp = open(f"{data_folder}lifetime_stats.json", "x")
         lifetime_stats = {}
         lifetime_stats['Total'] = {}
-        lifetime_stats['Total']['Name'] = 'Total'
+        lifetime_stats['Total']['Name'] = 'Bot Total'
         lifetime_stats['Total']['Rolls'] = [0]*20
         fp.close()
     except Exception as e:
@@ -177,7 +177,7 @@ def add_roll_to_stats(guild, author, roll):
     if str(guild.id) not in lifetime_stats:
         lifetime_stats[str(guild.id)] = {}
         lifetime_stats[str(guild.id)]['Total'] = {
-            'Name': 'Total',
+            'Name': str(guild),
             'Rolls': [0]*20
         }
     # end if
@@ -186,7 +186,7 @@ def add_roll_to_stats(guild, author, roll):
     if str(guild.id) not in session_stats:
         session_stats[str(guild.id)] = {}
         session_stats[str(guild.id)]['Total'] = {
-            'Name': 'Total',
+            'Name': str(guild),
             'Rolls': [0]*20
         }
     # end if
@@ -469,7 +469,7 @@ async def on_ready():
     # Setup session stats
     session_stats = {}
     session_stats['Total'] = {}
-    session_stats['Total']['Name'] = "Total"
+    session_stats['Total']['Name'] = "Bot Total"
     session_stats['Total']['Rolls'] = [0]*20
 
     convert_presets()
@@ -570,7 +570,7 @@ async def on_message(message):
             d20_rolled = 0
             session_stats = {}
             session_stats['Total'] = {}
-            session_stats['Total']['Name'] = "Total"
+            session_stats['Total']['Name'] = "Bot Total"
             session_stats['Total']['Rolls'] = [0]*20
             prev_time = -1
             # print(d20_rolled)
@@ -769,10 +769,10 @@ async def on_message(message):
     if msg.startswith("id"):
         if len(message.mentions) > 0:
             for m in message.mentions:
-                print(f"ID of user {m.name}#{m.discriminator}: {m.id}")
+                print(f"ID of user {m.name}#{m.discriminator}: {m.id}\nID of guild {message.guild}: {message.guild.id}")
             # end for
         else:
-            print(f"ID of user {message.author}: {message.author.id}")
+            print(f"ID of user {message.author}: {message.author.id}\nID of guild {message.guild}: {message.guild.id}")
         # end if
         return
     # end if
