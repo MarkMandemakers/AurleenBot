@@ -822,6 +822,16 @@ async def on_message(message):
     if msg.startswith(("dm", "h")):
         # Replace whole command up until first integer (expected: dice count) or +/- with "regular roll"
         cmd_split_index = re.search('[\+\-\d]', msg)
+
+        # Throw error if there are no dice to roll
+        if cmd_split_index == None:
+            print(f"[{message.content}; {message.author}] Nothing to re-roll")
+            await message.channel.send(f"{message.author.mention} You should add something to roll...")
+            return
+        # end if
+
+        print(cmd_split_index)
+        print(cmd_split_index.start())
         if "dis" in msg: 
             msg = msg.replace(msg[:cmd_split_index.start()], "dis")
         elif "adv" in msg:
@@ -1294,8 +1304,30 @@ async def on_message(message):
 
     # Quick-roll a d20 using !roll
     if msg.startswith("roll"):
-        # Convert to regular d20
-        msg = msg.replace("roll", "r1d20")
+        # Check if it is a "simple roll" or replacement of r
+        index_digit = 999999
+        index_mod = 999999
+        for i, c in enumerate(msg):
+            if c.isdigit():
+                index_digit = i
+                break
+        # end for
+        for i, c in enumerate(msg):
+            if c in ["+", "-"]:
+                index_mod = i
+                break
+        # end for
+
+        # !roll -> both 999999
+        # !roll+1d4 -> mod < digit
+        # !roll1d6 -> digit < mod
+        if index_digit < index_mod:
+            # Ex. !roll1d6
+            msg = msg.replace("roll", "r")
+        else:
+            # Ex. !roll or !roll + 1d4
+            msg = msg.replace("roll", "r1d20")
+        # end if
         
         prev_call = msg
     # end if - quick-roll d20
