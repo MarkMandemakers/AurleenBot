@@ -1387,6 +1387,12 @@ async def on_message(message):
                 embed.set_footer(text=footer)
             # end if
         # end if/else
+
+        # If this is a new "group" of rolls, send dividing line (-1 means first roll of session)
+        print(time.time() - prev_time)
+        if not dm_roll and prev_time != -1 and time.time() - prev_time >= divider_line_timediff:
+            await message.channel.send("──────────────────────────────────")
+        # end if
         
         # Send message to Discord or DM and update status
         if nr_of_embeds > 1:
@@ -1429,6 +1435,7 @@ async def on_message(message):
         # end if
         # await client.change_presence(activity=discord.Game(name="Rolled " + str(rolled) + " dice"))
         # print(str(time.time() - start) + "sec")
+        prev_time = time.time()
         return
     # end if - advantage / disadvantage
 
@@ -1925,7 +1932,7 @@ async def on_message(message):
 
         # If this is a new "group" of rolls, send dividing line (-1 means first roll of session)
         print(time.time() - prev_time)
-        if prev_time != -1 and time.time() - prev_time >= divider_line_timediff:
+        if not dm_roll and prev_time != -1 and time.time() - prev_time >= divider_line_timediff:
             await message.channel.send("──────────────────────────────────")
         # end if
 
