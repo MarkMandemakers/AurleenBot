@@ -755,7 +755,7 @@ async def on_message(message):
                             value="Add + or - your modifier to add it to the total of the roll", inline=False)
             embed.add_field(name=f"Roll Checks, e.g. {PREFIX}r1d00<=7", value="Supported checks: *>, >=, =, ==, <, <=*", inline=False)
             embed.add_field(name="Private Rolls:",
-                            value=f"- Add *dm* or *h* to your command to get the result via DM,\ne.g. {PREFIX}dm1d20 or {PREFIX}hadv+6\n- You can also just DM me on Discord", inline=False)
+                            value=f"- Add *dm* or *h* to your command to get the result via DM,\ne.g. {PREFIX}dm1d20 or {PREFIX}hadv+6\n- The result will always sent to you via DM, but you can also mention another recipient\n- You can also just DM me on Discord", inline=False)
             embed.set_footer(text="pls don't break me")
         # end if
         await message.channel.send(embed=embed)
@@ -1228,19 +1228,19 @@ async def on_message(message):
             if disadvantage:
                 total_result = min(d20s)
                 if total_result == 20:
-                    footer = f"NATURAL 20\nSession #{session_stats[str(message.author.id)]['Rolls'][20 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][20 - 1]}"
+                    footer = f"NATURAL 20\nSession #{session_stats[str(message.guild.id)][str(message.author.id)]['Rolls'][20 - 1]}; Lifetime #{lifetime_stats[str(message.guild.id)][str(message.author.id)]['Rolls'][20 - 1]}"
                     embed.set_thumbnail(url=nat20_img)
                 elif total_result == 1:
-                    footer = f"NATURAL 1\nSession #{session_stats[str(message.author.id)]['Rolls'][1 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][1 - 1]}"
+                    footer = f"NATURAL 1\nSession #{session_stats[str(message.guild.id)][str(message.author.id)]['Rolls'][1 - 1]}; Lifetime #{lifetime_stats[str(message.guild.id)][str(message.author.id)]['Rolls'][1 - 1]}"
                     embed.set_thumbnail(url=nat1_img)
                 # end if/elif
             else:
                 total_result = max(d20s)
                 if total_result == 20:
-                    footer = f"NATURAL 20\nSession #{session_stats[str(message.author.id)]['Rolls'][20 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][20 - 1]}"
+                    footer = f"NATURAL 20\nSession #{session_stats[str(message.guild.id)][str(message.author.id)]['Rolls'][20 - 1]}; Lifetime #{lifetime_stats[str(message.guild.id)][str(message.author.id)]['Rolls'][20 - 1]}"
                     embed.set_thumbnail(url=nat20_img)
                 elif total_result == 1:
-                    footer = f"NATURAL 1\nSession #{session_stats[str(message.author.id)]['Rolls'][1 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][1 - 1]}"
+                    footer = f"NATURAL 1\nSession #{session_stats[str(message.guild.id)][str(message.author.id)]['Rolls'][1 - 1]}; Lifetime #{lifetime_stats[str(message.guild.id)][str(message.author.id)]['Rolls'][1 - 1]}"
                     embed.set_thumbnail(url=nat1_img)
                 # end if/elif
             # end if/else
@@ -1772,10 +1772,10 @@ async def on_message(message):
                 add_roll_to_stats(message.guild, message.author, result)
 
                 if result == 20:
-                    footer = f"NATURAL 20\nSession #{session_stats[str(message.author.id)]['Rolls'][20 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][20 - 1]}"
+                    footer = f"NATURAL 20\nSession #{session_stats[str(message.guild.id)][str(message.author.id)]['Rolls'][20 - 1]}; Lifetime #{lifetime_stats[str(message.guild.id)][str(message.author.id)]['Rolls'][20 - 1]}"
                     embed.set_thumbnail(url=nat20_img)
                 elif result == 1:
-                    footer = f"NATURAL 1\nSession #{session_stats[str(message.author.id)]['Rolls'][1 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][1 - 1]}"
+                    footer = f"NATURAL 1\nSession #{session_stats[str(message.guild.id)][str(message.author.id)]['Rolls'][1 - 1]}; Lifetime #{lifetime_stats[str(message.guild.id)][str(message.author.id)]['Rolls'][1 - 1]}"
                     embed.set_thumbnail(url=nat1_img)
                 # end if/elif
 
