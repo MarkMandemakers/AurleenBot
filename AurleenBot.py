@@ -259,8 +259,6 @@ def print_stats():
 
 # Generate statistics image
 def gen_stats_img(stats, name, save=False, lifetime=False):
-    print(stats)
-
     x = range(1, 21)
     plt.clf()
     if name == "Total":
@@ -548,8 +546,22 @@ async def on_message(message):
     if str(message.author.id) in ADMINS or (not isinstance(message.channel, discord.channel.DMChannel) and str(message.author.id) in discord_data[str(message.guild.id)]['admins']):
         if msg.startswith(("quit", "stop", "exit")):
             print("[" + str(message.author) + "] Shutting down...")
+            print(session_stats)
             if not DEV_MODE and d20_rolled > 1:
-                gen_stats_img(stats=session_stats, name='Total', save=True)
+                # Check which guild members have statistics, and only include those
+                stats_subset = {}
+                stats_subset['Total'] = {
+                    'Name': 'Total',
+                    'Rolls': [0]*20
+                }
+                for member in message.guild.members:
+                    if str(member.id) in session_stats[str(message.guild.id)]:
+                        stats_subset[str(member.id)] = session_stats[str(message.guild.id)][str(member.id)]
+                        stats_subset[str(member.id)]['Name'] = member.display_name
+                        stats_subset['Total']['Rolls'] = [stats_subset['Total']['Rolls'][i] + session_stats[str(message.guild.id)][str(member.id)]['Rolls'][i] for i in range(len(stats_subset['Total']['Rolls']))]
+                    # end if
+                # end for
+                gen_stats_img(stats=stats_subset, name='Total', save=True)
             # end if
             update_discord()
             update_lifetime_stats()
@@ -722,26 +734,28 @@ async def on_message(message):
     # BOT INFORMATION
     ###########################################################################################################
     if msg.startswith(("help", "aurleen")):
-        embed = discord.Embed(title="AurleenBot Sample Commands", color=0x76883c)
-        embed.add_field(name=f"{PREFIX}r1d20", value="Roll a d20", inline=False)
-        embed.add_field(name=f"{PREFIX}r5d6", value=f"Roll five d6 and sum up\n(__Note__ Up to {total_dice_limit} dice can be rolled at once)", inline=False)
-        embed.add_field(name=f"{PREFIX}advantage ({PREFIX}adv) / {PREFIX}disadvantage ({PREFIX}dis)",
-                        value="Roll two d20 and keep the highest or lowest respectively", inline=False)
-        embed.add_field(name=f"{PREFIX}reroll / {PREFIX}re-roll", value="Re-Roll the previous roll command\n(__Note__ I re-roll the last call to me from anyone, not just from you)\n\u200b\n", inline=False)
+        async with message.channel.typing():
+            embed = discord.Embed(title="AurleenBot Sample Commands", color=0x76883c)
+            embed.add_field(name=f"{PREFIX}r1d20", value="Roll a d20", inline=False)
+            embed.add_field(name=f"{PREFIX}r5d6", value=f"Roll five d6 and sum up\n(__Note__ Up to {total_dice_limit} dice can be rolled at once)", inline=False)
+            embed.add_field(name=f"{PREFIX}advantage ({PREFIX}adv) / {PREFIX}disadvantage ({PREFIX}dis)",
+                            value="Roll two d20 and keep the highest or lowest respectively", inline=False)
+            embed.add_field(name=f"{PREFIX}reroll / {PREFIX}re-roll", value="Re-Roll the previous roll command\n(__Note__ I re-roll the last call to me from anyone, not just from you)\n\u200b\n", inline=False)
 
-        embed.add_field(name=f"Presets:", value="\u200b", inline=False)
-        embed.add_field(name=f"{PREFIX}bless / {PREFIX}guidance", value="Roll a d20 and add a d4", inline=False)
-        embed.add_field(name=f"{PREFIX}bane", value="Roll a d20 and subtract a d4\n\u200b\n", inline=False)
+            embed.add_field(name=f"Presets:", value="\u200b", inline=False)
+            embed.add_field(name=f"{PREFIX}bless / {PREFIX}guidance", value="Roll a d20 and add a d4", inline=False)
+            embed.add_field(name=f"{PREFIX}bane", value="Roll a d20 and subtract a d4\n\u200b\n", inline=False)
 
-        embed.add_field(name=f"Additions for any command:", value="\u200b", inline=False)
-        embed.add_field(name=f"Dice Modifiers, e.g. {PREFIX}r1d20+1d4",
-                        value="Add + or - your modifier dice to add it to the total of the roll", inline=False)
-        embed.add_field(name=f"Value Modifiers, e.g. {PREFIX}r1d20+5 or {PREFIX}r1d20+1d4-2",
-                        value="Add + or - your modifier to add it to the total of the roll", inline=False)
-        embed.add_field(name=f"Roll Checks, e.g. {PREFIX}r1d00<=7", value="Supported checks: *>, >=, =, ==, <, <=*", inline=False)
-        embed.add_field(name="Private Rolls:",
-                        value=f"- Add *dm* or *h* to your command to get the result via DM,\ne.g. {PREFIX}dm1d20 or {PREFIX}hadv+6\n- You can also just DM me on Discord", inline=False)
-        embed.set_footer(text="pls don't break me")
+            embed.add_field(name=f"Additions for any command:", value="\u200b", inline=False)
+            embed.add_field(name=f"Dice Modifiers, e.g. {PREFIX}r1d20+1d4",
+                            value="Add + or - your modifier dice to add it to the total of the roll", inline=False)
+            embed.add_field(name=f"Value Modifiers, e.g. {PREFIX}r1d20+5 or {PREFIX}r1d20+1d4-2",
+                            value="Add + or - your modifier to add it to the total of the roll", inline=False)
+            embed.add_field(name=f"Roll Checks, e.g. {PREFIX}r1d00<=7", value="Supported checks: *>, >=, =, ==, <, <=*", inline=False)
+            embed.add_field(name="Private Rolls:",
+                            value=f"- Add *dm* or *h* to your command to get the result via DM,\ne.g. {PREFIX}dm1d20 or {PREFIX}hadv+6\n- You can also just DM me on Discord", inline=False)
+            embed.set_footer(text="pls don't break me")
+        # end if
         await message.channel.send(embed=embed)
         print("[" + str(message.author) + "] Showed info")
         # prev_call = ""
@@ -789,153 +803,157 @@ async def on_message(message):
         # end if
         bot_total = False
 
-        if len(message.mentions) < 1:
-            target = "Total"
-        elif client.user.mentioned_in(message):
-            target = "Total"
-            bot_total = True
-        elif len(message.mentions) == 1:
-            target = message.mentions[0]
-        else:
-            target = "Total"
-        # end if
-        print(target)
-
-        print(session_stats)
-
-        # Update lifetime stats file
-        update_lifetime_stats()
-
-        # Session rolls
-        if ("life" not in msg and "lt" not in msg) or "ses" in msg:
-            # Verify if the guild has any rolls
-            if not bot_total and str(message.guild.id) not in session_stats:
-                print("[" + str(message.author) + "] No stats yet")
-                await message.channel.send(str(message.author.mention) +
-                                        " There are no statistics about d20 rolls to show yet...")
-                return
-            # end if
-
-            # Verify if the target is total or a user with rolls
-            if target == 'Total' or str(target.id) in session_stats[str(message.guild.id)]:
-                # Check if there have been any rolls in total
-                if not bot_total and target == 'Total' and sum(session_stats[str(message.guild.id)]['Total']['Rolls']) <= 0:
-                    print("[" + str(message.author) + "] No stats yet")
-                    await message.channel.send(str(message.author.mention) +
-                                            " There are no statistics about d20 rolls to show yet...")
-                    return
-                # end if
-
-                # Check if the target (not total) has done any rolls
-                if not bot_total and target != "Total" and (str(target.id)) in session_stats[str(message.guild.id)] and sum(session_stats[str(message.guild.id)][str(target.id)]["Rolls"]) <= 0:
-                    print("[" + str(message.author) + "] No stats yet")
-                    await message.channel.send(str(message.author.mention) +
-                                            " There are no statistics about d20 rolls to show yet...")
-                    return
-                # end if
-                print("[" + str(message.author) + "] Displaying stats")
-                
-                # Print to console
-                print_stats()
-
-                if not bot_total:
-                    # Check which guild members have statistics, and only include those
-                    stats_subset = {}
-                    stats_subset['Total'] = {
-                        'Name': 'Total',
-                        'Rolls': [0]*20
-                    }
-                    for member in message.guild.members:
-                        if str(member.id) in session_stats[str(message.guild.id)]:
-                            stats_subset[str(member.id)] = session_stats[str(message.guild.id)][str(member.id)]
-                            stats_subset[str(member.id)]['Name'] = member.display_name
-                            stats_subset['Total']['Rolls'] = [stats_subset['Total']['Rolls'][i] + session_stats[str(message.guild.id)][str(member.id)]['Rolls'][i] for i in range(len(stats_subset['Total']['Rolls']))]
-                        # end if
-                    # end for
-                # end if
-
-                # Generate image
-                if bot_total:
-                    gen_stats_img(stats=session_stats['Total'], name="Bot Total")
-                elif target == 'Total':
-                    gen_stats_img(stats=stats_subset, name=target)
-                else:
-                    gen_stats_img(stats=stats_subset[str(target.id)], name=target.display_name)
-                # end if
-
-                # Send image to Discord
-                await message.channel.send(file=discord.File('stats.png'))
+        # Set bot at typing in Discord while handling message
+        async with message.channel.typing():
+            # Set target based on mentions
+            if len(message.mentions) < 1:
+                target = "Total"
+            elif client.user.mentioned_in(message):
+                target = "Total"
+                bot_total = True
+            elif len(message.mentions) == 1:
+                target = message.mentions[0]
             else:
-                print("[" + str(message.author) + "] No stats yet")
-                await message.channel.send(str(message.author.mention) +
-                                        " There are no statistics about d20 rolls to show yet...")
-            # end if/else
-        elif "life" in msg or "lt" not in message:
-        # Lifetime rolls
-            # Verify if the guild has any rolls
-            if not bot_total and str(message.guild.id) not in lifetime_stats:
-                print("[" + str(message.author) + "] No stats yet")
-                await message.channel.send(str(message.author.mention) +
-                                        " There are no statistics about d20 rolls to show yet...")
-                return
+                target = "Total"
             # end if
+            print(target)
 
-            # Verify if the target is total or a user with rolls
-            if target == 'Total' or str(target.id) in lifetime_stats[str(message.guild.id)]:
-                # Check if there have been any rolls in total
-                if not bot_total and target == 'Total' and sum(lifetime_stats[str(message.guild.id)]['Total']['Rolls']) <= 0:
+            print(session_stats)
+
+            # Update lifetime stats file
+            update_lifetime_stats()
+
+            # Session rolls
+            if ("life" not in msg and "lt" not in msg) or "ses" in msg:
+                # Verify if the guild has any rolls
+                if not bot_total and str(message.guild.id) not in session_stats:
                     print("[" + str(message.author) + "] No stats yet")
                     await message.channel.send(str(message.author.mention) +
                                             " There are no statistics about d20 rolls to show yet...")
                     return
                 # end if
 
-                # Check if the target (not total) has done any rolls
-                if not bot_total and target != "Total" and (str(target.id)) in lifetime_stats[str(message.guild.id)] and sum(lifetime_stats[str(message.guild.id)][str(target.id)]["Rolls"]) <= 0:
-                    print("[" + str(message.author) + "] No stats yet")
-                    await message.channel.send(str(message.author.mention) +
-                                            " There are no statistics about d20 rolls to show yet...")
-                    return
-                # end if
-                print("[" + str(message.author) + "] Displaying lifetime stats")
-
-                # Print to console
-                print_stats()
-
-                # Check which guild members have statistics, and only include those
-                if not bot_total:
-                    stats_subset = {}
-                    stats_subset['Total'] = {
-                        'Name': 'Total',
-                        'Rolls': [0]*20
-                    }
-                    for member in message.guild.members:
-                        if str(member.id) in lifetime_stats[str(message.guild.id)]:
-                            stats_subset[str(member.id)] = lifetime_stats[str(message.guild.id)][str(member.id)]
-                            stats_subset[str(member.id)]['Name'] = member.display_name
-                            stats_subset['Total']['Rolls'] = [stats_subset['Total']['Rolls'][i] + lifetime_stats[str(message.guild.id)][str(member.id)]['Rolls'][i] for i in range(len(stats_subset['Total']['Rolls']))]
-                        # end if
-                    # end for
-                # end if
-
-                # Generate image
-                if bot_total:
-                    gen_stats_img(stats=lifetime_stats['Total'], name="Bot Total", lifetime=True)
-                elif target == 'Total':
-                    gen_stats_img(stats=stats_subset, name=target, lifetime=True)
-                else:
-                    gen_stats_img(stats=stats_subset[str(target.id)], name=target.display_name, lifetime=True)
+                # Verify if the target is total or a user with rolls
+                if target == 'Total' or str(target.id) in session_stats[str(message.guild.id)]:
+                    # Check if there have been any rolls in total
+                    if not bot_total and target == 'Total' and sum(session_stats[str(message.guild.id)]['Total']['Rolls']) <= 0:
+                        print("[" + str(message.author) + "] No stats yet")
+                        await message.channel.send(str(message.author.mention) +
+                                                " There are no statistics about d20 rolls to show yet...")
+                        return
                     # end if
+
+                    # Check if the target (not total) has done any rolls
+                    if not bot_total and target != "Total" and (str(target.id)) in session_stats[str(message.guild.id)] and sum(session_stats[str(message.guild.id)][str(target.id)]["Rolls"]) <= 0:
+                        print("[" + str(message.author) + "] No stats yet")
+                        await message.channel.send(str(message.author.mention) +
+                                                " There are no statistics about d20 rolls to show yet...")
+                        return
+                    # end if
+                    print("[" + str(message.author) + "] Displaying stats")
+                    
+                    # Print to console
+                    print_stats()
+
+                    if not bot_total:
+                        # Check which guild members have statistics, and only include those
+                        stats_subset = {}
+                        stats_subset['Total'] = {
+                            'Name': 'Total',
+                            'Rolls': [0]*20
+                        }
+                        for member in message.guild.members:
+                            if str(member.id) in session_stats[str(message.guild.id)]:
+                                stats_subset[str(member.id)] = session_stats[str(message.guild.id)][str(member.id)]
+                                stats_subset[str(member.id)]['Name'] = member.display_name
+                                stats_subset['Total']['Rolls'] = [stats_subset['Total']['Rolls'][i] + session_stats[str(message.guild.id)][str(member.id)]['Rolls'][i] for i in range(len(stats_subset['Total']['Rolls']))]
+                            # end if
+                        # end for
+                    # end if
+
+                    # Generate image
+                    if bot_total:
+                        gen_stats_img(stats=session_stats['Total'], name="Bot Total")
+                    elif target == 'Total':
+                        gen_stats_img(stats=stats_subset, name=target)
+                    else:
+                        gen_stats_img(stats=stats_subset[str(target.id)], name=target.display_name)
+                    # end if
+
+                    # Send image to Discord
+                    await message.channel.send(file=discord.File('stats.png'))
+                else:
+                    print("[" + str(message.author) + "] No stats yet")
+                    await message.channel.send(str(message.author.mention) +
+                                            " There are no statistics about d20 rolls to show yet...")
+                # end if/else
+            elif "life" in msg or "lt" not in message:
+            # Lifetime rolls
+                # Verify if the guild has any rolls
+                if not bot_total and str(message.guild.id) not in lifetime_stats:
+                    print("[" + str(message.author) + "] No stats yet")
+                    await message.channel.send(str(message.author.mention) +
+                                            " There are no statistics about d20 rolls to show yet...")
+                    return
                 # end if
 
-                # Send image to Discord
-                await message.channel.send(file=discord.File('stats.png'))
-            else:
-                print("[" + str(message.author) + "] No lifetime stats yet")
-                await message.channel.send(str(message.author.mention) +
-                                        " There are no lifetime statistics about d20 rolls to show yet...")
-            # end if/else
-        # end if
+                # Verify if the target is total or a user with rolls
+                if target == 'Total' or str(target.id) in lifetime_stats[str(message.guild.id)]:
+                    # Check if there have been any rolls in total
+                    if not bot_total and target == 'Total' and sum(lifetime_stats[str(message.guild.id)]['Total']['Rolls']) <= 0:
+                        print("[" + str(message.author) + "] No stats yet")
+                        await message.channel.send(str(message.author.mention) +
+                                                " There are no statistics about d20 rolls to show yet...")
+                        return
+                    # end if
+
+                    # Check if the target (not total) has done any rolls
+                    if not bot_total and target != "Total" and (str(target.id)) in lifetime_stats[str(message.guild.id)] and sum(lifetime_stats[str(message.guild.id)][str(target.id)]["Rolls"]) <= 0:
+                        print("[" + str(message.author) + "] No stats yet")
+                        await message.channel.send(str(message.author.mention) +
+                                                " There are no statistics about d20 rolls to show yet...")
+                        return
+                    # end if
+                    print("[" + str(message.author) + "] Displaying lifetime stats")
+
+                    # Print to console
+                    print_stats()
+
+                    # Check which guild members have statistics, and only include those
+                    if not bot_total:
+                        stats_subset = {}
+                        stats_subset['Total'] = {
+                            'Name': 'Total',
+                            'Rolls': [0]*20
+                        }
+                        for member in message.guild.members:
+                            if str(member.id) in lifetime_stats[str(message.guild.id)]:
+                                stats_subset[str(member.id)] = lifetime_stats[str(message.guild.id)][str(member.id)]
+                                stats_subset[str(member.id)]['Name'] = member.display_name
+                                stats_subset['Total']['Rolls'] = [stats_subset['Total']['Rolls'][i] + lifetime_stats[str(message.guild.id)][str(member.id)]['Rolls'][i] for i in range(len(stats_subset['Total']['Rolls']))]
+                            # end if
+                        # end for
+                    # end if
+
+                    # Generate image
+                    if bot_total:
+                        gen_stats_img(stats=lifetime_stats['Total'], name="Bot Total", lifetime=True)
+                    elif target == 'Total':
+                        gen_stats_img(stats=stats_subset, name=target, lifetime=True)
+                    else:
+                        gen_stats_img(stats=stats_subset[str(target.id)], name=target.display_name, lifetime=True)
+                        # end if
+                    # end if
+
+                    # Send image to Discord
+                    await message.channel.send(file=discord.File('stats.png'))
+                else:
+                    print("[" + str(message.author) + "] No lifetime stats yet")
+                    await message.channel.send(str(message.author.mention) +
+                                            " There are no lifetime statistics about d20 rolls to show yet...")
+                # end if/else
+            # end if
+        # end with - typing
         return
     # end if - d20 statistics
 
@@ -963,7 +981,7 @@ async def on_message(message):
     # HIDDEN / DM ROLLS
     ###########################################################################################################
     dm_roll = False
-    if msg.startswith(("dm", "h")):
+    if msg.startswith(("dm", "h")) and (isinstance(message.channel, discord.channel.DMChannel) or message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
         # Replace whole command up until first integer (expected: dice count) or +/- with "regular roll"
         cmd_split_index = re.search('[\+\-\d]', msg)
 
@@ -974,8 +992,8 @@ async def on_message(message):
             return
         # end if
 
-        print(cmd_split_index)
-        print(cmd_split_index.start())
+        # print(cmd_split_index)
+        # print(cmd_split_index.start())
         if "dis" in msg: 
             msg = msg.replace(msg[:cmd_split_index.start()], "dis")
         elif "adv" in msg:
@@ -1013,383 +1031,386 @@ async def on_message(message):
     # ROLLING WITH ADVANTAGE / DISADVANTAGE
     ###########################################################################################################    
     if msg.startswith(("adv", "dis")) and (isinstance(message.channel, discord.channel.DMChannel) or message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
-        prev_call = msg
-        # Find additional modifier (dice or not)
-        modifier_dice = re.findall('[\+\-]r*\d*d\d+', msg)
-        modifier = re.findall('[\+\-]\d+(?![d\d])', msg)
+        # Set bot as typing in Discord while handling message
+        async with message.channel.typing():
+            prev_call = msg
+            # Find additional modifier (dice or not)
+            modifier_dice = re.findall('[\+\-]r*\d*d\d+', msg)
+            modifier = re.findall('[\+\-]\d+(?![d\d])', msg)
 
-        # Check if we should roll with advantage or disadvantage
-        disadvantage = ("dis" in msg)
+            # Check if we should roll with advantage or disadvantage
+            disadvantage = ("dis" in msg)
 
-        # If the format is correct, proceed with message processing
-        # Setup variables and get total dice count
-        total_dice_count = 2  # Start at two due to (dis)advantage
+            # If the format is correct, proceed with message processing
+            # Setup variables and get total dice count
+            total_dice_count = 2  # Start at two due to (dis)advantage
 
-        # Setup variables for dice and modifier
-        dice_count = []
-        dice_type = []
-        modifier_total = 0
+            # Setup variables for dice and modifier
+            dice_count = []
+            dice_type = []
+            modifier_total = 0
 
-        # Go through all modifier dice and find type/count
-        for dice in modifier_dice:
-            dice_split = dice.replace("+", "").replace("r", "").split("d")
-            dice_type.append(int(dice_split[1]))
-            dice_count.append(int(dice_split[0]))
-        # end for
-
-        # Cleanup
-        del modifier_dice
-
-        [dice_type, dice_count] = unify_dice(dice_type, dice_count)
-        for c in dice_count:
-            total_dice_count += abs(int(c))
-        # end for
-
-        # Find total modifier (without dice)
-        for mod in modifier:
-            modifier_total += int(mod)
-        # end for
-
-        # Cleanup
-        del modifier
-
-        # Check if dice limit is reached or no dice are left after unifying
-        if total_dice_count == 0:
-            print("[" + str(message.content) + "; " + str(message.author) + "] No dice left after unifying")
-            await message.channel.send(str(message.author.mention) +
-                                       " This doesn\'t add up with the number of dice you want to roll.\n"
-                                       f"Please use **{PREFIX}help** to see what formats are supported.")
-            # Do not proceed with message processing
-            return
-        elif total_dice_count > total_dice_limit:
-            # Throw error
-            print("[" + str(message.content) + "; " + str(message.author) + "] Too many dice to roll, throwing error")
-            await message.channel.send(f"{message.author.mention} Sorry, I cannot roll that many dice at once.\nPlease try to roll {total_dice_limit} dice or less.")
-            # Do not proceed with message processing
-            return
-        # end if/elif
-
-        # Create roll description
-        desc = "2d20 (at "
-        if disadvantage:
-            desc += "dis"
-        # end if
-        desc += "advantage)"
-
-        for i in range(0, len(dice_type)):
-            if int(dice_count[i]) < 0:
-                desc += str(dice_count[i]).replace("-", " - ") + "d" + str(dice_type[i])
-            else:
-                desc += " + " + str(dice_count[i]) + "d" + str(dice_type[i])
-            # end if/else
-        # end for
-        if int(modifier_total) < 0:
-            desc += str(modifier_total).replace("-", " - ")
-        elif int(modifier_total) > 0:
-            desc += " + " + str(modifier_total)
-        # end if/elif
-
-        # Add to description if we are checking a roll
-        if len(check_roll) > 0:
-            desc += f" {check_roll[0]} {check_roll[1]}"
-        # end if
-
-        # Setup embedding for dice roll response
-        embed = discord.Embed(title=title_preset + "Rolling for " + str(message.author.display_name), description=desc,
-                              color=0x76883c)
-        footer = ""
-        total_result = 0
-        max_possible = 20
-        min_possible = 0
-        nr_of_embeds = 1
-
-        # Split into more embeds if rolling more than embed limit dice, less than hard limit
-        # Add one to dice count because of empty cell in advantage row
-        if field_limit < total_dice_count + 1 <= total_dice_limit:
-            added_embeds = []
-            nr_of_embeds = math.ceil((total_dice_count + 1) / field_limit)
-            embed.title += f" (1/{nr_of_embeds})"
-            for i in range(nr_of_embeds-1):
-                added_embeds.append(discord.Embed(title=f"{title_preset}Rolling for {message.author.display_name} ({i+2}/{nr_of_embeds})", description="\u200b", color=0x76883c))
+            # Go through all modifier dice and find type/count
+            for dice in modifier_dice:
+                dice_split = dice.replace("+", "").replace("r", "").split("d")
+                dice_type.append(int(dice_split[1]))
+                dice_count.append(int(dice_split[0]))
             # end for
-        # end
 
-        # Keep track of nr of field added to embed
-        fields = 0
-        embed_count = -1
+            # Cleanup
+            del modifier_dice
 
-        # Roll base dice at (dis)advantage
-        d20s = roll(20, 2)
+            [dice_type, dice_count] = unify_dice(dice_type, dice_count)
+            for c in dice_count:
+                total_dice_count += abs(int(c))
+            # end for
 
-        # Store statistics
-        d20_rolled += 2
-        d20_stats[d20s[0] - 1] += 1
-        d20_stats[d20s[1] - 1] += 1
-        min_possible += 1
+            # Find total modifier (without dice)
+            for mod in modifier:
+                modifier_total += int(mod)
+            # end for
 
-        # # Update lifetime total stats
-        # lifetime_stats["Total"]['Rolls'][d20s[0] - 1] += 1
-        # lifetime_stats["Total"]['Rolls'][d20s[1] - 1] += 1
+            # Cleanup
+            del modifier
 
-        # # Update (or create) lifetime stats of message author
-        # if str(message.author.id) not in lifetime_stats:
-        #     lifetime_stats[str(message.author.id)] = {}
-        #     lifetime_stats[str(message.author.id)]['Name'] = message.author.name
-        #     lifetime_stats[str(message.author.id)]['Rolls'] = [0]*20
-        #     lifetime_stats[str(message.author.id)]['Rolls'][d20s[0] - 1] += 1
-        #     lifetime_stats[str(message.author.id)]['Rolls'][d20s[1] - 1] += 1
-        # else:
-        #     lifetime_stats[str(message.author.id)]['Rolls'][d20s[0] - 1] += 1
-        #     lifetime_stats[str(message.author.id)]['Rolls'][d20s[1] - 1] += 1
-        # # end if
-
-        # # Update session total stats
-        # session_stats["Total"]['Rolls'][d20s[0] - 1] += 1
-        # session_stats["Total"]['Rolls'][d20s[1] - 1] += 1
-
-        # # Update (or create) session stats of message author
-        # if str(message.author.id) not in session_stats:
-        #     session_stats[str(message.author.id)] = {}
-        #     session_stats[str(message.author.id)]['Name'] = message.author.name
-        #     session_stats[str(message.author.id)]['Rolls'] = [0]*20
-        #     session_stats[str(message.author.id)]['Rolls'][d20s[0] - 1] += 1
-        #     session_stats[str(message.author.id)]['Rolls'][d20s[1] - 1] += 1
-        # else:
-        #     session_stats[str(message.author.id)]['Rolls'][d20s[0] - 1] += 1
-        #     session_stats[str(message.author.id)]['Rolls'][d20s[1] - 1] += 1
-        # # end if
-
-        # Update rolls in statistics
-        add_roll_to_stats(message.guild, message.author, d20s[0])
-        add_roll_to_stats(message.guild, message.author, d20s[1])
-
-        # Handle (dis)advantage
-        if disadvantage:
-            total_result = min(d20s)
-            if total_result == 20:
-                footer = f"NATURAL 20\nSession #{session_stats[str(message.author.id)]['Rolls'][20 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][20 - 1]}"
-                embed.set_thumbnail(url=nat20_img)
-            elif total_result == 1:
-                footer = f"NATURAL 1\nSession #{session_stats[str(message.author.id)]['Rolls'][1 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][1 - 1]}"
-                embed.set_thumbnail(url=nat1_img)
+            # Check if dice limit is reached or no dice are left after unifying
+            if total_dice_count == 0:
+                print("[" + str(message.content) + "; " + str(message.author) + "] No dice left after unifying")
+                await message.channel.send(str(message.author.mention) +
+                                        " This doesn\'t add up with the number of dice you want to roll.\n"
+                                        f"Please use **{PREFIX}help** to see what formats are supported.")
+                # Do not proceed with message processing
+                return
+            elif total_dice_count > total_dice_limit:
+                # Throw error
+                print("[" + str(message.content) + "; " + str(message.author) + "] Too many dice to roll, throwing error")
+                await message.channel.send(f"{message.author.mention} Sorry, I cannot roll that many dice at once.\nPlease try to roll {total_dice_limit} dice or less.")
+                # Do not proceed with message processing
+                return
             # end if/elif
-        else:
-            total_result = max(d20s)
-            if total_result == 20:
-                footer = f"NATURAL 20\nSession #{session_stats[str(message.author.id)]['Rolls'][20 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][20 - 1]}"
-                embed.set_thumbnail(url=nat20_img)
-            elif total_result == 1:
-                footer = f"NATURAL 1\nSession #{session_stats[str(message.author.id)]['Rolls'][1 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][1 - 1]}"
-                embed.set_thumbnail(url=nat1_img)
-            # end if/elif
-        # end if/else
 
-        # Highlight the selected result
-        if d20s[0] == total_result:
-            embed.add_field(name="d20 #1", value="**" + str(d20s[0]) + "**", inline=True)
-            fields += 1
-        else:
-            embed.add_field(name="d20 #1", value=str(d20s[0]), inline=True)
-            fields += 1
-        # end if/else
-        if d20s[1] == total_result:
-            embed.add_field(name="d20 #2", value="**" + str(d20s[1]) + "**", inline=True)
-            fields += 1
-        else:
-            embed.add_field(name="d20 #2", value=str(d20s[1]), inline=True)
-            fields += 1
-        # end if/else
-        # Add empty field to fill out the row
-        embed.add_field(name="\u200b", value="\u200b", inline=True)
-        fields += 1
+            # Create roll description
+            desc = "2d20 (at "
+            if disadvantage:
+                desc += "dis"
+            # end if
+            desc += "advantage)"
 
-        # Any other dice rolling
-        for i in range(0, len(dice_type)):
-            # Roll all dice of this type at once
-            results = roll(dice_type[i], abs(dice_count[i]))
-
-            for result in results:
-                # Go through all results
-                if fields == field_limit:
-                    embed_count += 1
-                    fields = 0
-                # end if
-
-                if dice_count[i] < 0:
-                    # Negative dice modifier
-                    if result == dice_type[i] or result == 1:
-                        if embed_count == -1:
-                            embed.add_field(name="-d" + str(dice_type[i]), value=f"*-{str(result)}*", inline=True)
-                        else:
-                            added_embeds[embed_count].add_field(name="-d" + str(dice_type[i]), value=f"*-{str(result)}*", inline=True)
-                        # end if
-                        fields += 1
-                    else:
-                        if embed_count == -1:
-                            embed.add_field(name="-d" + str(dice_type[i]), value=f"-{str(result)}", inline=True)
-                        else:
-                            added_embeds[embed_count].add_field(name="-d" + str(dice_type[i]), value=f"-{str(result)}", inline=True)
-                        # end if
-                        fields += 1
-                    # end if
-
-                    total_result -= result
-                    max_possible -= 1
-                    min_possible -= dice_type[i]
+            for i in range(0, len(dice_type)):
+                if int(dice_count[i]) < 0:
+                    desc += str(dice_count[i]).replace("-", " - ") + "d" + str(dice_type[i])
                 else:
-                    # Positive dice modifier
-                    if result == dice_type[i] or result == 1:
-                        if embed_count == -1:
-                            embed.add_field(name="d" + str(dice_type[i]), value=f"*{str(result)}*", inline=True)
-                        else:
-                            added_embeds[embed_count].add_field(name="d" + str(dice_type[i]), value=f"*{str(result)}*", inline=True)
-                        # end if
-                        fields += 1
-                    else:
-                        if embed_count == -1:
-                            embed.add_field(name="d" + str(dice_type[i]), value=result, inline=True)
-                        else:
-                            added_embeds[embed_count].add_field(name="d" + str(dice_type[i]), value=result, inline=True)
-                        # end if
-                        fields += 1
+                    desc += " + " + str(dice_count[i]) + "d" + str(dice_type[i])
+                # end if/else
+            # end for
+            if int(modifier_total) < 0:
+                desc += str(modifier_total).replace("-", " - ")
+            elif int(modifier_total) > 0:
+                desc += " + " + str(modifier_total)
+            # end if/elif
+
+            # Add to description if we are checking a roll
+            if len(check_roll) > 0:
+                desc += f" {check_roll[0]} {check_roll[1]}"
+            # end if
+
+            # Setup embedding for dice roll response
+            embed = discord.Embed(title=title_preset + "Rolling for " + str(message.author.display_name), description=desc,
+                                color=0x76883c)
+            footer = ""
+            total_result = 0
+            max_possible = 20
+            min_possible = 0
+            nr_of_embeds = 1
+
+            # Split into more embeds if rolling more than embed limit dice, less than hard limit
+            # Add one to dice count because of empty cell in advantage row
+            if field_limit < total_dice_count + 1 <= total_dice_limit:
+                added_embeds = []
+                nr_of_embeds = math.ceil((total_dice_count + 1) / field_limit)
+                embed.title += f" (1/{nr_of_embeds})"
+                for i in range(nr_of_embeds-1):
+                    added_embeds.append(discord.Embed(title=f"{title_preset}Rolling for {message.author.display_name} ({i+2}/{nr_of_embeds})", description="\u200b", color=0x76883c))
+                # end for
+            # end
+
+            # Keep track of nr of field added to embed
+            fields = 0
+            embed_count = -1
+
+            # Roll base dice at (dis)advantage
+            d20s = roll(20, 2)
+
+            # Store statistics
+            d20_rolled += 2
+            d20_stats[d20s[0] - 1] += 1
+            d20_stats[d20s[1] - 1] += 1
+            min_possible += 1
+
+            # # Update lifetime total stats
+            # lifetime_stats["Total"]['Rolls'][d20s[0] - 1] += 1
+            # lifetime_stats["Total"]['Rolls'][d20s[1] - 1] += 1
+
+            # # Update (or create) lifetime stats of message author
+            # if str(message.author.id) not in lifetime_stats:
+            #     lifetime_stats[str(message.author.id)] = {}
+            #     lifetime_stats[str(message.author.id)]['Name'] = message.author.name
+            #     lifetime_stats[str(message.author.id)]['Rolls'] = [0]*20
+            #     lifetime_stats[str(message.author.id)]['Rolls'][d20s[0] - 1] += 1
+            #     lifetime_stats[str(message.author.id)]['Rolls'][d20s[1] - 1] += 1
+            # else:
+            #     lifetime_stats[str(message.author.id)]['Rolls'][d20s[0] - 1] += 1
+            #     lifetime_stats[str(message.author.id)]['Rolls'][d20s[1] - 1] += 1
+            # # end if
+
+            # # Update session total stats
+            # session_stats["Total"]['Rolls'][d20s[0] - 1] += 1
+            # session_stats["Total"]['Rolls'][d20s[1] - 1] += 1
+
+            # # Update (or create) session stats of message author
+            # if str(message.author.id) not in session_stats:
+            #     session_stats[str(message.author.id)] = {}
+            #     session_stats[str(message.author.id)]['Name'] = message.author.name
+            #     session_stats[str(message.author.id)]['Rolls'] = [0]*20
+            #     session_stats[str(message.author.id)]['Rolls'][d20s[0] - 1] += 1
+            #     session_stats[str(message.author.id)]['Rolls'][d20s[1] - 1] += 1
+            # else:
+            #     session_stats[str(message.author.id)]['Rolls'][d20s[0] - 1] += 1
+            #     session_stats[str(message.author.id)]['Rolls'][d20s[1] - 1] += 1
+            # # end if
+
+            # Update rolls in statistics
+            add_roll_to_stats(message.guild, message.author, d20s[0])
+            add_roll_to_stats(message.guild, message.author, d20s[1])
+
+            # Handle (dis)advantage
+            if disadvantage:
+                total_result = min(d20s)
+                if total_result == 20:
+                    footer = f"NATURAL 20\nSession #{session_stats[str(message.author.id)]['Rolls'][20 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][20 - 1]}"
+                    embed.set_thumbnail(url=nat20_img)
+                elif total_result == 1:
+                    footer = f"NATURAL 1\nSession #{session_stats[str(message.author.id)]['Rolls'][1 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][1 - 1]}"
+                    embed.set_thumbnail(url=nat1_img)
+                # end if/elif
+            else:
+                total_result = max(d20s)
+                if total_result == 20:
+                    footer = f"NATURAL 20\nSession #{session_stats[str(message.author.id)]['Rolls'][20 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][20 - 1]}"
+                    embed.set_thumbnail(url=nat20_img)
+                elif total_result == 1:
+                    footer = f"NATURAL 1\nSession #{session_stats[str(message.author.id)]['Rolls'][1 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][1 - 1]}"
+                    embed.set_thumbnail(url=nat1_img)
+                # end if/elif
+            # end if/else
+
+            # Highlight the selected result
+            if d20s[0] == total_result:
+                embed.add_field(name="d20 #1", value="**" + str(d20s[0]) + "**", inline=True)
+                fields += 1
+            else:
+                embed.add_field(name="d20 #1", value=str(d20s[0]), inline=True)
+                fields += 1
+            # end if/else
+            if d20s[1] == total_result:
+                embed.add_field(name="d20 #2", value="**" + str(d20s[1]) + "**", inline=True)
+                fields += 1
+            else:
+                embed.add_field(name="d20 #2", value=str(d20s[1]), inline=True)
+                fields += 1
+            # end if/else
+            # Add empty field to fill out the row
+            embed.add_field(name="\u200b", value="\u200b", inline=True)
+            fields += 1
+
+            # Any other dice rolling
+            for i in range(0, len(dice_type)):
+                # Roll all dice of this type at once
+                results = roll(dice_type[i], abs(dice_count[i]))
+
+                for result in results:
+                    # Go through all results
+                    if fields == field_limit:
+                        embed_count += 1
+                        fields = 0
                     # end if
 
-                    total_result += result
-                    max_possible += dice_type[i]
-                    min_possible += 1
-                # end if/else
+                    if dice_count[i] < 0:
+                        # Negative dice modifier
+                        if result == dice_type[i] or result == 1:
+                            if embed_count == -1:
+                                embed.add_field(name="-d" + str(dice_type[i]), value=f"*-{str(result)}*", inline=True)
+                            else:
+                                added_embeds[embed_count].add_field(name="-d" + str(dice_type[i]), value=f"*-{str(result)}*", inline=True)
+                            # end if
+                            fields += 1
+                        else:
+                            if embed_count == -1:
+                                embed.add_field(name="-d" + str(dice_type[i]), value=f"-{str(result)}", inline=True)
+                            else:
+                                added_embeds[embed_count].add_field(name="-d" + str(dice_type[i]), value=f"-{str(result)}", inline=True)
+                            # end if
+                            fields += 1
+                        # end if
 
-                # Add d20 statistics
-                if dice_type[i] == 20:
-                    d20_rolled += 1
-                    d20_stats[result - 1] += 1
+                        total_result -= result
+                        max_possible -= 1
+                        min_possible -= dice_type[i]
+                    else:
+                        # Positive dice modifier
+                        if result == dice_type[i] or result == 1:
+                            if embed_count == -1:
+                                embed.add_field(name="d" + str(dice_type[i]), value=f"*{str(result)}*", inline=True)
+                            else:
+                                added_embeds[embed_count].add_field(name="d" + str(dice_type[i]), value=f"*{str(result)}*", inline=True)
+                            # end if
+                            fields += 1
+                        else:
+                            if embed_count == -1:
+                                embed.add_field(name="d" + str(dice_type[i]), value=result, inline=True)
+                            else:
+                                added_embeds[embed_count].add_field(name="d" + str(dice_type[i]), value=result, inline=True)
+                            # end if
+                            fields += 1
+                        # end if
 
-                    # # Update lifetime total stats
-                    # lifetime_stats["Total"]['Rolls'][result - 1] += 1
+                        total_result += result
+                        max_possible += dice_type[i]
+                        min_possible += 1
+                    # end if/else
 
-                    # # Update (or create) lifetime stats of message author
-                    # if str(message.author.id) not in lifetime_stats:
-                    #     lifetime_stats[str(message.author.id)] = {}
-                    #     lifetime_stats[str(message.author.id)]['Name'] = message.author.name
-                    #     lifetime_stats[str(message.author.id)]['Rolls'] = [0]*20
-                    #     lifetime_stats[str(message.author.id)]['Rolls'][result - 1] += 1
-                    # else:
-                    #     lifetime_stats[str(message.author.id)]['Name'] = message.author.name
-                    #     lifetime_stats[str(message.author.id)]['Rolls'][result - 1] += 1
-                    # # end if
+                    # Add d20 statistics
+                    if dice_type[i] == 20:
+                        d20_rolled += 1
+                        d20_stats[result - 1] += 1
 
-                    # # Update session total stats
-                    # session_stats["Total"]['Rolls'][result - 1] += 1
+                        # # Update lifetime total stats
+                        # lifetime_stats["Total"]['Rolls'][result - 1] += 1
 
-                    # # Update (or create) session stats of message author
-                    # if str(message.author.id) not in session_stats:
-                    #     session_stats[str(message.author.id)] = {}
-                    #     session_stats[str(message.author.id)]['Name'] = message.author.name
-                    #     session_stats[str(message.author.id)]['Rolls'] = [0]*20
-                    #     session_stats[str(message.author.id)]['Rolls'][result - 1] += 1
-                    # else:
-                    #     session_stats[str(message.author.id)]['Name'] = message.author.name
-                    #     session_stats[str(message.author.id)]['Rolls'][result - 1] += 1
-                    # # end if
+                        # # Update (or create) lifetime stats of message author
+                        # if str(message.author.id) not in lifetime_stats:
+                        #     lifetime_stats[str(message.author.id)] = {}
+                        #     lifetime_stats[str(message.author.id)]['Name'] = message.author.name
+                        #     lifetime_stats[str(message.author.id)]['Rolls'] = [0]*20
+                        #     lifetime_stats[str(message.author.id)]['Rolls'][result - 1] += 1
+                        # else:
+                        #     lifetime_stats[str(message.author.id)]['Name'] = message.author.name
+                        #     lifetime_stats[str(message.author.id)]['Rolls'][result - 1] += 1
+                        # # end if
 
-                    add_roll_to_stats(message.guild, message.author, result)
-                # end if
+                        # # Update session total stats
+                        # session_stats["Total"]['Rolls'][result - 1] += 1
+
+                        # # Update (or create) session stats of message author
+                        # if str(message.author.id) not in session_stats:
+                        #     session_stats[str(message.author.id)] = {}
+                        #     session_stats[str(message.author.id)]['Name'] = message.author.name
+                        #     session_stats[str(message.author.id)]['Rolls'] = [0]*20
+                        #     session_stats[str(message.author.id)]['Rolls'][result - 1] += 1
+                        # else:
+                        #     session_stats[str(message.author.id)]['Name'] = message.author.name
+                        #     session_stats[str(message.author.id)]['Rolls'][result - 1] += 1
+                        # # end if
+
+                        add_roll_to_stats(message.guild, message.author, result)
+                    # end if
+                # end for
             # end for
-        # end for
 
-        # Add modifier to calculate total
-        if modifier_total != 0:
+            # Add modifier to calculate total
+            if modifier_total != 0:
+                if nr_of_embeds > 1:
+                    # add to last embed
+                    if modifier_total > 0:
+                        added_embeds[-1].add_field(name="Modifier", value=f"+{modifier_total}", inline=True)
+                    else:
+                        added_embeds[-1].add_field(name="Modifier", value=modifier_total, inline=True)
+                    # end if
+                else:
+                    if modifier_total > 0:
+                        embed.add_field(name="Modifier", value=f"+{modifier_total}", inline=True)
+                    else:
+                        embed.add_field(name="Modifier", value=modifier_total, inline=True)
+                    # end if
+                # end if
+            # end if
+
+            total_result += modifier_total
+            max_possible += modifier_total
+            min_possible += modifier_total
+
+            # Add total to embedding, handle check if needed
+            if len(check_roll) > 0:
+                # Generate list of dice sides
+                contains_negative_dice = False
+                sides = [20] # Add 20 for (dis)advantage roll
+                for i in range(len(dice_count)):
+                    # Probability calculation doesn't work with negative dice (yet)
+                    if dice_count[i] < 0:
+                        contains_negative_dice = True
+                        break
+                    # end if
+                    sides.extend([dice_type[i]]*dice_count[i])
+                # end for
+
+                # Calculate probability of success
+                prob_add = ""
+                if not contains_negative_dice:
+                    [success, prob, poss] = dice_prob(int(check_roll[1]), check_roll[0], sides)
+                    if success:
+                        prob_add = f"\nChance: {round(prob/poss*100, 2)}% ({prob} / {poss})"
+                    # end if
+                    if not success or prob == 0:
+                        prob_add = " (impossible)"
+                    # end if
+                # end if
+
+                if eval(f"{total_result}{check_roll[0]}{check_roll[1]}"):
+                    # embed.add_field(name="Total", value=f"{total_result} (Success)", inline=False)
+                    if footer == "":
+                        footer += f"SUCCESS{prob_add}"
+                    else:
+                        footer += f"\nSUCCESS{prob_add}"
+                    # end if
+                else:
+                    # embed.add_field(name="Total", value=f"{total_result} (Fail)", inline=False)
+                    if footer == "":
+                        footer += f"FAIL{prob_add}"
+                    else:
+                        footer += f"\nFAIL{prob_add}"
+                    # end if
+                # end if
+            # end if
             if nr_of_embeds > 1:
                 # add to last embed
-                if modifier_total > 0:
-                    added_embeds[-1].add_field(name="Modifier", value=f"+{modifier_total}", inline=True)
-                else:
-                    added_embeds[-1].add_field(name="Modifier", value=modifier_total, inline=True)
-                # end if
+                added_embeds[-1].add_field(name="Total", value=total_result, inline=False)
             else:
-                if modifier_total > 0:
-                    embed.add_field(name="Modifier", value=f"+{modifier_total}", inline=True)
-                else:
-                    embed.add_field(name="Modifier", value=modifier_total, inline=True)
-                # end if
-            # end if
-        # end if
-
-        total_result += modifier_total
-        max_possible += modifier_total
-        min_possible += modifier_total
-
-        # Add total to embedding, handle check if needed
-        if len(check_roll) > 0:
-            # Generate list of dice sides
-            contains_negative_dice = False
-            sides = [20] # Add 20 for (dis)advantage roll
-            for i in range(len(dice_count)):
-                # Probability calculation doesn't work with negative dice (yet)
-                if dice_count[i] < 0:
-                    contains_negative_dice = True
-                    break
-                # end if
-                sides.extend([dice_type[i]]*dice_count[i])
-            # end for
-
-            # Calculate probability of success
-            prob_add = ""
-            if not contains_negative_dice:
-                [success, prob, poss] = dice_prob(int(check_roll[1]), check_roll[0], sides)
-                if success:
-                    prob_add = f"\nChance: {round(prob/poss*100, 2)}% ({prob} / {poss})"
-                # end if
-                if not success or prob == 0:
-                    prob_add = " (impossible)"
-                # end if
+                embed.add_field(name="Total", value=total_result, inline=False)
             # end if
 
-            if eval(f"{total_result}{check_roll[0]}{check_roll[1]}"):
-                # embed.add_field(name="Total", value=f"{total_result} (Success)", inline=False)
-                if footer == "":
-                    footer += f"SUCCESS{prob_add}"
+            # Add stats of roll
+            if footer == "":
+                # Footer is empty (so no nat. 1 or 20)
+                if nr_of_embeds > 1:
+                    added_embeds[-1].set_footer(text="min. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " + str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
                 else:
-                    footer += f"\nSUCCESS{prob_add}"
+                    embed.set_footer(text="min. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " + str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
                 # end if
             else:
-                # embed.add_field(name="Total", value=f"{total_result} (Fail)", inline=False)
-                if footer == "":
-                    footer += f"FAIL{prob_add}"
-                else:
-                    footer += f"\nFAIL{prob_add}"
-                # end if
-            # end if
-        # end if
-        if nr_of_embeds > 1:
-            # add to last embed
-            added_embeds[-1].add_field(name="Total", value=total_result, inline=False)
-        else:
-            embed.add_field(name="Total", value=total_result, inline=False)
-        # end if
-
-        # Add stats of roll
-        if footer == "":
-            # Footer is empty (so no nat. 1 or 20)
-            if nr_of_embeds > 1:
-                added_embeds[-1].set_footer(text="min. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " + str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
-            else:
-                embed.set_footer(text="min. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " + str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
-            # end if
-        else:
-            footer += ("\nmin. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " +
-                        str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
-            embed.set_footer(text=footer)
-            
-            if nr_of_embeds > 1:
-                added_embeds[-1].set_footer(text=footer)
-            else:
+                footer += ("\nmin. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " +
+                            str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
                 embed.set_footer(text=footer)
-            # end if
-        # end if/else
+                
+                if nr_of_embeds > 1:
+                    added_embeds[-1].set_footer(text=footer)
+                else:
+                    embed.set_footer(text=footer)
+                # end if
+            # end if/else
+        # end with - typing
 
         # If this is a new "group" of rolls, send dividing line (-1 means first roll of session)
-        print(time.time() - prev_time)
+        # print(time.time() - prev_time)
         if not dm_roll and prev_time != -1 and time.time() - prev_time >= divider_line_timediff:
             await message.channel.send("──────────────────────────────────")
         # end if
@@ -1399,14 +1420,14 @@ async def on_message(message):
             if dm_roll:
                 # Adjust title to see it in notification
                 embed.title = f"Rolling {desc}: {total_result}"
-                embed.description = f"1 / {nr_of_embeds}"
+                embed.description = f"1 / {nr_of_embeds} - {message.author.display_name}"
                 # Send DM
                 await message.author.send(warning, embed=embed)
 
                 # Send other embeds
                 for i in range(len(added_embeds)):
                     added_embeds[i].title = f"Rolling {desc}: {total_result}"
-                    added_embeds[i].description = f"{i+2} / {nr_of_embeds}"
+                    added_embeds[i].description = f"{i+2} / {nr_of_embeds} - {message.author.display_name}"
                     await message.author.send(embed=added_embeds[i])
                 # end for
 
@@ -1424,7 +1445,7 @@ async def on_message(message):
             if dm_roll:
                 # Adjust title to see it in notification
                 embed.title = f"Rolling {desc}: {total_result}"
-                embed.description = ""
+                embed.description = f"{message.author.display_name}"
                 # Send DM
                 await message.author.send(warning, embed=embed)
                 await message.add_reaction("🎲")
@@ -1435,7 +1456,7 @@ async def on_message(message):
         # end if
         # await client.change_presence(activity=discord.Game(name="Rolled " + str(rolled) + " dice"))
         # print(str(time.time() - start) + "sec")
-        prev_time = time.time()
+        if not dm_roll: prev_time = time.time()
         return
     # end if - advantage / disadvantage
 
@@ -1560,378 +1581,381 @@ async def on_message(message):
         # \+\d+[^d]         positive modifier (no dice)
         # \-\d+[^d]         negative modifier (no dice)
 
-        base_dice = re.findall(f'r(\d+d\d+)', msg)
-        modifier_dice = re.findall('[\+\-]r*\d*d\d+', msg)
-        modifier = re.findall('[\+\-]\d+(?![d\d])', msg)
+        # Set bot as typing on Discord while handling message
+        async with message.channel.typing():
+            base_dice = re.findall(f'r(\d+d\d+)', msg)
+            modifier_dice = re.findall('[\+\-]r*\d*d\d+', msg)
+            modifier = re.findall('[\+\-]\d+(?![d\d])', msg)
 
-        # print(f"msg: {msg}\nbase dice: {base_dice}\nmodifier dice: {modifier_dice}\nmodifier: {modifier}")
+            # print(f"msg: {msg}\nbase dice: {base_dice}\nmodifier dice: {modifier_dice}\nmodifier: {modifier}")
 
-        # Check command format
-        if len(base_dice) != 1 or int(base_dice[0].split("d")[1]) <= 0:
-            # No base dice found (or too many), return error message
-            print("[" + str(message.content) + "; " + str(message.author) + "] Not correct number of base dice")
-            await message.channel.send(str(message.author.mention) + " Something seems to be off with that command.\n"
-                                                                     f"Please use **{PREFIX}help** to see what formats are supported.")
-            # Do not proceed with message processing
-            return
-        # end if
+            # Check command format
+            if len(base_dice) != 1 or int(base_dice[0].split("d")[1]) <= 0:
+                # No base dice found (or too many), return error message
+                print("[" + str(message.content) + "; " + str(message.author) + "] Not correct number of base dice")
+                await message.channel.send(str(message.author.mention) + " Something seems to be off with that command.\n"
+                                                                        f"Please use **{PREFIX}help** to see what formats are supported.")
+                # Do not proceed with message processing
+                return
+            # end if
 
-        # If the format is correct, proceed with message processing
-        # Setup variables and get total dice count
-        total_dice_count = 0
-        base_dice_split = base_dice[0].split("d")
-        base_dice_count = int(base_dice_split[0])
-        # total_dice_count += base_dice_count
-        base_dice_type = int(base_dice_split[1])
+            # If the format is correct, proceed with message processing
+            # Setup variables and get total dice count
+            total_dice_count = 0
+            base_dice_split = base_dice[0].split("d")
+            base_dice_count = int(base_dice_split[0])
+            # total_dice_count += base_dice_count
+            base_dice_type = int(base_dice_split[1])
 
-        # Setup variables for dice and modifier
-        dice_count = []
-        dice_type = []
-        modifier_total = 0
+            # Setup variables for dice and modifier
+            dice_count = []
+            dice_type = []
+            modifier_total = 0
 
-        # Add base dice to dice arrays
-        dice_type.append(base_dice_type)
-        dice_count.append(base_dice_count)
+            # Add base dice to dice arrays
+            dice_type.append(base_dice_type)
+            dice_count.append(base_dice_count)
 
-        # Some cleanup
-        del base_dice
-        del base_dice_count
-        del base_dice_type
-        del base_dice_split
+            # Some cleanup
+            del base_dice
+            del base_dice_count
+            del base_dice_type
+            del base_dice_split
 
-        # Go through all modifier dice and find type/count
-        for dice in modifier_dice:
-            dice_split = dice.replace("+", "").replace("r", "").split("d")
-            dice_type.append(int(dice_split[1]))
-            dice_count.append(int(dice_split[0]))
-        # end for
-
-        # Cleanup
-        del modifier_dice
-
-        [dice_type, dice_count] = unify_dice(dice_type, dice_count)
-        for c in dice_count:
-            total_dice_count += abs(int(c))
-        # end for
-
-        # Find total modifier (without dice)
-        for mod in modifier:
-            modifier_total += int(mod)
-        # end for
-
-        # Cleanup
-        del modifier
-
-        # Check if dice limit is reached or no dice are left after unifying
-        if total_dice_count == 0:
-            print("[" + str(message.content) + "; " + str(message.author) + "] No dice left after unifying")
-            await message.channel.send(str(message.author.mention) +
-                                       " This doesn\'t add up with the number of dice you want to roll.\n"
-                                       f"Please use **{PREFIX}help** to see what formats are supported.")
-            # Do not proceed with message processing
-            return
-        elif total_dice_count > total_dice_limit:
-            # Throw error
-            print("[" + str(message.content) + "; " + str(message.author) + "] Too many dice to roll, throwing error")
-            await message.channel.send(f"{message.author.mention} Sorry, I cannot roll that many dice at once.\nPlease try to roll {total_dice_limit} dice or less.")
-            # Do not proceed with message processing
-            return
-        # end if/elif
-
-        # Create roll description
-        desc = add_msg + "\n" if add_msg != "" else ""
-        desc += str(dice_count[0]) + "d" + str(dice_type[0])
-        for i in range(1, len(dice_type)):
-            if int(dice_count[i]) < 0:
-                desc += str(dice_count[i]).replace("-", " - ") + "d" + str(dice_type[i])
-            else:
-                desc += " + " + str(dice_count[i]) + "d" + str(dice_type[i])
-            # end if/else
-        # end for
-        if int(modifier_total) < 0:
-            desc += str(modifier_total).replace("-", " - ")
-        elif int(modifier_total) > 0:
-            desc += " + " + str(modifier_total)
-        # end if/elif
-
-        # Add to description if we are checking a roll
-        if len(check_roll) > 0:
-            desc += f" {check_roll[0]} {check_roll[1]}"
-        # end if
-
-        # Setup embedding for dice roll response
-        embed = discord.Embed(title=f"{title_preset}Rolling for {message.author.display_name}", description=desc, color=0x76883c)
-        footer = ""
-        total_result = 0
-        max_possible = 0
-        min_possible = 0
-        nr_of_embeds = 1
-
-        # Split into more embeds if rolling more than embed limit dice, less than hard limit
-        if field_limit < total_dice_count <= total_dice_limit:
-            added_embeds = []
-            nr_of_embeds = math.ceil(total_dice_count / field_limit)
-            embed.title += f" (1/{nr_of_embeds})"
-            for i in range(nr_of_embeds-1):
-                added_embeds.append(discord.Embed(title=f"{title_preset}Rolling for {message.author.display_name} ({i+2}/{nr_of_embeds})", description="\u200b", color=0x76883c))
+            # Go through all modifier dice and find type/count
+            for dice in modifier_dice:
+                dice_split = dice.replace("+", "").replace("r", "").split("d")
+                dice_type.append(int(dice_split[1]))
+                dice_count.append(int(dice_split[0]))
             # end for
-        # end
 
-        # Keep track of nr of field added to embed
-        fields = 0
-        embed_count = -1
+            # Cleanup
+            del modifier_dice
 
-        # Roll base dice
-        if dice_type[0] == 20 and dice_count[0] == 1:
-            # Start with 1d20, natural 1 or natural 20 can occur
-            result = roll(20)[0]
-            embed.add_field(name="d20", value=result, inline=True)
-            fields += 1
+            [dice_type, dice_count] = unify_dice(dice_type, dice_count)
+            for c in dice_count:
+                total_dice_count += abs(int(c))
+            # end for
 
-            # Add d20 statistics
-            d20_rolled += 1
-            d20_stats[result - 1] += 1
+            # Find total modifier (without dice)
+            for mod in modifier:
+                modifier_total += int(mod)
+            # end for
 
-            add_roll_to_stats(message.guild, message.author, result)
+            # Cleanup
+            del modifier
 
-            if result == 20:
-                footer = f"NATURAL 20\nSession #{session_stats[str(message.author.id)]['Rolls'][20 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][20 - 1]}"
-                embed.set_thumbnail(url=nat20_img)
-            elif result == 1:
-                footer = f"NATURAL 1\nSession #{session_stats[str(message.author.id)]['Rolls'][1 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][1 - 1]}"
-                embed.set_thumbnail(url=nat1_img)
+            # Check if dice limit is reached or no dice are left after unifying
+            if total_dice_count == 0:
+                print("[" + str(message.content) + "; " + str(message.author) + "] No dice left after unifying")
+                await message.channel.send(str(message.author.mention) +
+                                        " This doesn\'t add up with the number of dice you want to roll.\n"
+                                        f"Please use **{PREFIX}help** to see what formats are supported.")
+                # Do not proceed with message processing
+                return
+            elif total_dice_count > total_dice_limit:
+                # Throw error
+                print("[" + str(message.content) + "; " + str(message.author) + "] Too many dice to roll, throwing error")
+                await message.channel.send(f"{message.author.mention} Sorry, I cannot roll that many dice at once.\nPlease try to roll {total_dice_limit} dice or less.")
+                # Do not proceed with message processing
+                return
             # end if/elif
 
-            total_result += result
-            max_possible += 20
-            min_possible += 1
-        else:
-            # Roll all dice of base type at once
-            results = roll(dice_type[0], abs(dice_count[0]))
-
-            for result in results:
-                # Go through all results
-                if fields == field_limit:
-                    embed_count += 1
-                    fields = 0
-                # end if
-
-                if dice_count[0] < 0:
-                    # Negative base dice count
-                    if result == dice_type[0] or result == 1:
-                        if embed_count == -1:
-                            embed.add_field(name="-d" + str(dice_type[0]), value=f"*-{str(result)}*", inline=True)
-                        else:
-                            added_embeds[embed_count].add_field(name="-d" + str(dice_type[0]), value=f"*-{str(result)}*", inline=True)
-                        # end if
-                        fields += 1
-                    else:
-                        if embed_count == -1:
-                            embed.add_field(name="-d" + str(dice_type[0]), value=f"-{str(result)}", inline=True)
-                        else:
-                            added_embeds[embed_count].add_field(name="-d" + str(dice_type[0]), value=f"-{str(result)}", inline=True)
-                        # end if
-                        fields += 1
-                    # end if
-
-                    total_result -= result
-                    max_possible -= 1
-                    min_possible -= dice_type[0]
+            # Create roll description
+            desc = add_msg + "\n" if add_msg != "" else ""
+            desc += str(dice_count[0]) + "d" + str(dice_type[0])
+            for i in range(1, len(dice_type)):
+                if int(dice_count[i]) < 0:
+                    desc += str(dice_count[i]).replace("-", " - ") + "d" + str(dice_type[i])
                 else:
-                    # Positive base dice count
-                    if result == dice_type[0] or result == 1:
-                        if embed_count == -1:
-                            embed.add_field(name="d" + str(dice_type[0]), value=f"*{str(result)}*", inline=True)
-                        else:
-                            added_embeds[embed_count].add_field(name="d" + str(dice_type[0]), value=f"*{str(result)}*", inline=True)
-                        # end if
-                        fields += 1
-                    else:
-                        if embed_count == -1:
-                            embed.add_field(name="d" + str(dice_type[0]), value=result, inline=True)
-                        else:
-                            added_embeds[embed_count].add_field(name="d" + str(dice_type[0]), value=result, inline=True)
-                        # end if
-                        fields += 1
-                    # end if
-
-                    total_result += result
-                    max_possible += dice_type[0]
-                    min_possible += 1
+                    desc += " + " + str(dice_count[i]) + "d" + str(dice_type[i])
                 # end if/else
+            # end for
+            if int(modifier_total) < 0:
+                desc += str(modifier_total).replace("-", " - ")
+            elif int(modifier_total) > 0:
+                desc += " + " + str(modifier_total)
+            # end if/elif
+
+            # Add to description if we are checking a roll
+            if len(check_roll) > 0:
+                desc += f" {check_roll[0]} {check_roll[1]}"
+            # end if
+
+            # Setup embedding for dice roll response
+            embed = discord.Embed(title=f"{title_preset}Rolling for {message.author.display_name}", description=desc, color=0x76883c)
+            footer = ""
+            total_result = 0
+            max_possible = 0
+            min_possible = 0
+            nr_of_embeds = 1
+
+            # Split into more embeds if rolling more than embed limit dice, less than hard limit
+            if field_limit < total_dice_count <= total_dice_limit:
+                added_embeds = []
+                nr_of_embeds = math.ceil(total_dice_count / field_limit)
+                embed.title += f" (1/{nr_of_embeds})"
+                for i in range(nr_of_embeds-1):
+                    added_embeds.append(discord.Embed(title=f"{title_preset}Rolling for {message.author.display_name} ({i+2}/{nr_of_embeds})", description="\u200b", color=0x76883c))
+                # end for
+            # end
+
+            # Keep track of nr of field added to embed
+            fields = 0
+            embed_count = -1
+
+            # Roll base dice
+            if dice_type[0] == 20 and dice_count[0] == 1:
+                # Start with 1d20, natural 1 or natural 20 can occur
+                result = roll(20)[0]
+                embed.add_field(name="d20", value=result, inline=True)
+                fields += 1
 
                 # Add d20 statistics
-                if dice_type[0] == 20:
-                    d20_rolled += 1
-                    d20_stats[result - 1] += 1
+                d20_rolled += 1
+                d20_stats[result - 1] += 1
 
-                    add_roll_to_stats(message.guild, message.author, result)
-                # end if
-            # end for
-        # end if/else
+                add_roll_to_stats(message.guild, message.author, result)
 
-        # Any other dice rolling
-        for i in range(1, len(dice_type)):
-            # Roll all dice of this type at once
-            results = roll(dice_type[i], abs(dice_count[i]))
+                if result == 20:
+                    footer = f"NATURAL 20\nSession #{session_stats[str(message.author.id)]['Rolls'][20 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][20 - 1]}"
+                    embed.set_thumbnail(url=nat20_img)
+                elif result == 1:
+                    footer = f"NATURAL 1\nSession #{session_stats[str(message.author.id)]['Rolls'][1 - 1]}; Lifetime #{lifetime_stats[str(message.author.id)]['Rolls'][1 - 1]}"
+                    embed.set_thumbnail(url=nat1_img)
+                # end if/elif
 
-            for result in results:
-                # Go through all results
-                if fields == field_limit:
-                    embed_count += 1
-                    fields = 0
-                # end if
+                total_result += result
+                max_possible += 20
+                min_possible += 1
+            else:
+                # Roll all dice of base type at once
+                results = roll(dice_type[0], abs(dice_count[0]))
 
-                if dice_count[i] < 0:
-                    # Negative dice modifier
-                    if result == dice_type[i] or result == 1:
-                        if embed_count == -1:
-                            embed.add_field(name="-d" + str(dice_type[i]), value=f"*-{str(result)}*", inline=True)
-                        else:
-                            added_embeds[embed_count].add_field(name="-d" + str(dice_type[i]), value=f"*-{str(result)}*", inline=True)
-                        # end if
-                        fields += 1
-                    else:
-                        if embed_count == -1:
-                            embed.add_field(name="-d" + str(dice_type[i]), value=f"-{str(result)}", inline=True)
-                        else:
-                            added_embeds[embed_count].add_field(name="-d" + str(dice_type[i]), value=f"-{str(result)}", inline=True)
-                        # end if
-                        fields += 1
+                for result in results:
+                    # Go through all results
+                    if fields == field_limit:
+                        embed_count += 1
+                        fields = 0
                     # end if
 
-                    total_result -= result
-                    max_possible -= 1
-                    min_possible -= dice_type[i]
-                    # print(min_possible)
+                    if dice_count[0] < 0:
+                        # Negative base dice count
+                        if result == dice_type[0] or result == 1:
+                            if embed_count == -1:
+                                embed.add_field(name="-d" + str(dice_type[0]), value=f"*-{str(result)}*", inline=True)
+                            else:
+                                added_embeds[embed_count].add_field(name="-d" + str(dice_type[0]), value=f"*-{str(result)}*", inline=True)
+                            # end if
+                            fields += 1
+                        else:
+                            if embed_count == -1:
+                                embed.add_field(name="-d" + str(dice_type[0]), value=f"-{str(result)}", inline=True)
+                            else:
+                                added_embeds[embed_count].add_field(name="-d" + str(dice_type[0]), value=f"-{str(result)}", inline=True)
+                            # end if
+                            fields += 1
+                        # end if
+
+                        total_result -= result
+                        max_possible -= 1
+                        min_possible -= dice_type[0]
+                    else:
+                        # Positive base dice count
+                        if result == dice_type[0] or result == 1:
+                            if embed_count == -1:
+                                embed.add_field(name="d" + str(dice_type[0]), value=f"*{str(result)}*", inline=True)
+                            else:
+                                added_embeds[embed_count].add_field(name="d" + str(dice_type[0]), value=f"*{str(result)}*", inline=True)
+                            # end if
+                            fields += 1
+                        else:
+                            if embed_count == -1:
+                                embed.add_field(name="d" + str(dice_type[0]), value=result, inline=True)
+                            else:
+                                added_embeds[embed_count].add_field(name="d" + str(dice_type[0]), value=result, inline=True)
+                            # end if
+                            fields += 1
+                        # end if
+
+                        total_result += result
+                        max_possible += dice_type[0]
+                        min_possible += 1
+                    # end if/else
+
+                    # Add d20 statistics
+                    if dice_type[0] == 20:
+                        d20_rolled += 1
+                        d20_stats[result - 1] += 1
+
+                        add_roll_to_stats(message.guild, message.author, result)
+                    # end if
+                # end for
+            # end if/else
+
+            # Any other dice rolling
+            for i in range(1, len(dice_type)):
+                # Roll all dice of this type at once
+                results = roll(dice_type[i], abs(dice_count[i]))
+
+                for result in results:
+                    # Go through all results
+                    if fields == field_limit:
+                        embed_count += 1
+                        fields = 0
+                    # end if
+
+                    if dice_count[i] < 0:
+                        # Negative dice modifier
+                        if result == dice_type[i] or result == 1:
+                            if embed_count == -1:
+                                embed.add_field(name="-d" + str(dice_type[i]), value=f"*-{str(result)}*", inline=True)
+                            else:
+                                added_embeds[embed_count].add_field(name="-d" + str(dice_type[i]), value=f"*-{str(result)}*", inline=True)
+                            # end if
+                            fields += 1
+                        else:
+                            if embed_count == -1:
+                                embed.add_field(name="-d" + str(dice_type[i]), value=f"-{str(result)}", inline=True)
+                            else:
+                                added_embeds[embed_count].add_field(name="-d" + str(dice_type[i]), value=f"-{str(result)}", inline=True)
+                            # end if
+                            fields += 1
+                        # end if
+
+                        total_result -= result
+                        max_possible -= 1
+                        min_possible -= dice_type[i]
+                        # print(min_possible)
+                    else:
+                        # Positive dice modifier
+                        if result == dice_type[i] or result == 1:
+                            if embed_count == -1:
+                                embed.add_field(name="d" + str(dice_type[i]), value=f"*{str(result)}*", inline=True)
+                            else:
+                                added_embeds[embed_count].add_field(name="d" + str(dice_type[i]), value=f"*{str(result)}*", inline=True)
+                            # end if
+                            fields += 1
+                        else:
+                            if embed_count == -1:
+                                embed.add_field(name="d" + str(dice_type[i]), value=result, inline=True)
+                            else:
+                                added_embeds[embed_count].add_field(name="d" + str(dice_type[i]), value=result, inline=True)
+                            # end if
+                            fields += 1
+                        # end if
+
+                        total_result += result
+                        max_possible += dice_type[i]
+                        min_possible += 1
+                    # end if/else
+
+                    # Add d20 statistics
+                    if dice_type[i] == 20:
+                        d20_rolled += 1
+                        d20_stats[result - 1] += 1
+
+                        add_roll_to_stats(message.guild, message.author, result)
+                    # end if
+                # end for
+            # end for
+
+            # Add modifier to calculate total
+            if modifier_total != 0:
+                if nr_of_embeds > 1:
+                    # add to last embed
+                    if modifier_total > 0:
+                        added_embeds[-1].add_field(name="Modifier", value=f"+{modifier_total}", inline=True)
+                    else:
+                        added_embeds[-1].add_field(name="Modifier", value=modifier_total, inline=True)
+                    # end if
                 else:
-                    # Positive dice modifier
-                    if result == dice_type[i] or result == 1:
-                        if embed_count == -1:
-                            embed.add_field(name="d" + str(dice_type[i]), value=f"*{str(result)}*", inline=True)
-                        else:
-                            added_embeds[embed_count].add_field(name="d" + str(dice_type[i]), value=f"*{str(result)}*", inline=True)
-                        # end if
-                        fields += 1
+                    if modifier_total > 0:
+                        embed.add_field(name="Modifier", value=f"+{modifier_total}", inline=True)
                     else:
-                        if embed_count == -1:
-                            embed.add_field(name="d" + str(dice_type[i]), value=result, inline=True)
-                        else:
-                            added_embeds[embed_count].add_field(name="d" + str(dice_type[i]), value=result, inline=True)
-                        # end if
-                        fields += 1
+                        embed.add_field(name="Modifier", value=modifier_total, inline=True)
                     # end if
-
-                    total_result += result
-                    max_possible += dice_type[i]
-                    min_possible += 1
-                # end if/else
-
-                # Add d20 statistics
-                if dice_type[i] == 20:
-                    d20_rolled += 1
-                    d20_stats[result - 1] += 1
-
-                    add_roll_to_stats(message.guild, message.author, result)
                 # end if
-            # end for
-        # end for
+            # end if
 
-        # Add modifier to calculate total
-        if modifier_total != 0:
+            total_result += modifier_total
+            max_possible += modifier_total
+            min_possible += modifier_total
+
+            # Add total to embedding, handle check if needed
+            if len(check_roll) > 0:
+                # Generate list of dice sides
+                contains_negative_dice = False
+                sides = []
+                for i in range(len(dice_count)):
+                    # Probability calculation doesn't work with negative dice (yet)
+                    if dice_count[i] < 0:
+                        contains_negative_dice = True
+                        break
+                    # end if
+                    sides.extend([dice_type[i]]*dice_count[i])
+                # end for
+
+                # Calculate probability of success
+                prob_add = ""
+                if not contains_negative_dice:
+                    [success, prob, poss] = dice_prob(int(check_roll[1]), check_roll[0], sides)
+                    if success:
+                        prob_add = f"\nChance: {round(prob/poss*100, 2)}% ({prob} / {poss})"
+                    # end if
+                # end if
+
+                # Based on whether or not the probability could be calculated, add info to footer
+                try:
+                    success
+                except NameError:
+                    if eval(f"{total_result}{check_roll[0]}{check_roll[1]}"):
+                        footer += f"SUCCESS{prob_add}" if footer == "" else f"\nSUCCESS{prob_add}"
+                    else:
+                        footer += f"FAIL{prob_add}" if footer == "" else f"\nFAIL{prob_add}"
+                    # end if
+                else:
+                    if eval(f"{total_result}{check_roll[0]}{check_roll[1]}"):
+                        footer += f"SUCCESS{prob_add}" if footer == "" else f"\nSUCCESS{prob_add}"
+                    elif not success or prob == 0:
+                        footer += f"IMPOSSIBLE" if footer == "" else f"\nIMPOSSIBLE"
+                    else:
+                        footer += f"FAIL{prob_add}" if footer == "" else f"\nFAIL{prob_add}"
+                    # end if
+                # end try except
+            # end if
             if nr_of_embeds > 1:
                 # add to last embed
-                if modifier_total > 0:
-                    added_embeds[-1].add_field(name="Modifier", value=f"+{modifier_total}", inline=True)
-                else:
-                    added_embeds[-1].add_field(name="Modifier", value=modifier_total, inline=True)
-                # end if
+                added_embeds[-1].add_field(name="Total", value=total_result, inline=False)
             else:
-                if modifier_total > 0:
-                    embed.add_field(name="Modifier", value=f"+{modifier_total}", inline=True)
-                else:
-                    embed.add_field(name="Modifier", value=modifier_total, inline=True)
-                # end if
+                embed.add_field(name="Total", value=total_result, inline=False)
             # end if
-        # end if
-
-        total_result += modifier_total
-        max_possible += modifier_total
-        min_possible += modifier_total
-
-        # Add total to embedding, handle check if needed
-        if len(check_roll) > 0:
-            # Generate list of dice sides
-            contains_negative_dice = False
-            sides = []
-            for i in range(len(dice_count)):
-                # Probability calculation doesn't work with negative dice (yet)
-                if dice_count[i] < 0:
-                    contains_negative_dice = True
-                    break
-                # end if
-                sides.extend([dice_type[i]]*dice_count[i])
-            # end for
-
-            # Calculate probability of success
-            prob_add = ""
-            if not contains_negative_dice:
-                [success, prob, poss] = dice_prob(int(check_roll[1]), check_roll[0], sides)
-                if success:
-                    prob_add = f"\nChance: {round(prob/poss*100, 2)}% ({prob} / {poss})"
-                # end if
-            # end if
-
-            # Based on whether or not the probability could be calculated, add info to footer
-            try:
-                success
-            except NameError:
-                if eval(f"{total_result}{check_roll[0]}{check_roll[1]}"):
-                    footer += f"SUCCESS{prob_add}" if footer == "" else f"\nSUCCESS{prob_add}"
-                else:
-                    footer += f"FAIL{prob_add}" if footer == "" else f"\nFAIL{prob_add}"
-                # end if
-            else:
-                if eval(f"{total_result}{check_roll[0]}{check_roll[1]}"):
-                    footer += f"SUCCESS{prob_add}" if footer == "" else f"\nSUCCESS{prob_add}"
-                elif not success or prob == 0:
-                    footer += f"IMPOSSIBLE" if footer == "" else f"\nIMPOSSIBLE"
-                else:
-                    footer += f"FAIL{prob_add}" if footer == "" else f"\nFAIL{prob_add}"
-                # end if
-            # end try except
-        # end if
-        if nr_of_embeds > 1:
-            # add to last embed
-            added_embeds[-1].add_field(name="Total", value=total_result, inline=False)
-        else:
-            embed.add_field(name="Total", value=total_result, inline=False)
-        # end if
-        
-
-        # Store message for re-rolling
-        prev_call = msg
-
-        # Add stats of roll
-        if footer == "":
-            # Footer is empty (so no nat. 1 or 20)
-            if nr_of_embeds > 1:
-                added_embeds[-1].set_footer(text="min. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " + str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
-            else:
-                embed.set_footer(text="min. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " + str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
-            # end if
-        else:
-            footer += ("\nmin. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " + str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
             
-            if nr_of_embeds > 1:
-                added_embeds[-1].set_footer(text=footer)
+
+            # Store message for re-rolling
+            prev_call = msg
+
+            # Add stats of roll
+            if footer == "":
+                # Footer is empty (so no nat. 1 or 20)
+                if nr_of_embeds > 1:
+                    added_embeds[-1].set_footer(text="min. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " + str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
+                else:
+                    embed.set_footer(text="min. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " + str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
+                # end if
             else:
-                embed.set_footer(text=footer)
-            # end if
-        # end if/else
+                footer += ("\nmin. " + str(min_possible) + "; max. " + str(max_possible) + " 🡢 " + str(round((total_result - min_possible) / (max_possible - min_possible) * 100)) + "%")
+                
+                if nr_of_embeds > 1:
+                    added_embeds[-1].set_footer(text=footer)
+                else:
+                    embed.set_footer(text=footer)
+                # end if
+            # end if/else
+        # end with - typing
 
         # If this is a new "group" of rolls, send dividing line (-1 means first roll of session)
-        print(time.time() - prev_time)
+        # print(time.time() - prev_time)
         if not dm_roll and prev_time != -1 and time.time() - prev_time >= divider_line_timediff:
             await message.channel.send("──────────────────────────────────")
         # end if
@@ -1941,14 +1965,14 @@ async def on_message(message):
             if dm_roll:
                 # Adjust title to see it in notification
                 embed.title = f"Rolling {desc}: {total_result}"
-                embed.description = f"1 / {nr_of_embeds}"
+                embed.description = f"1 / {nr_of_embeds} - {message.author.display_name}"
                 # Send DM
                 await message.author.send(warning, embed=embed)
 
                 # Send other embeds
                 for i in range(len(added_embeds)):
                     added_embeds[i].title = f"Rolling {desc}: {total_result}"
-                    added_embeds[i].description = f"{i+2} / {nr_of_embeds}"
+                    added_embeds[i].description = f"{i+2} / {nr_of_embeds} - {message.author.display_name}"
                     await message.author.send(embed=added_embeds[i])
                 # end for
 
@@ -1966,7 +1990,7 @@ async def on_message(message):
             if dm_roll:
                 # Adjust title to see it in notification
                 embed.title = f"Rolling {desc}: {total_result}"
-                embed.description = ""
+                embed.description = f"{message.author.display_name}"
                 # Send DM
                 await message.author.send(warning, embed=embed)
                 await message.add_reaction("🎲")
@@ -1977,11 +2001,9 @@ async def on_message(message):
         # end if
         # await client.change_presence(activity=discord.Game(name="Rolled " + str(rolled) + " dice"))
         print(str(time.time() - start) + "sec; now rolled " + str(rolled) + " dice")
-        prev_time = time.time()
+        if not dm_roll: prev_time = time.time()
         return
     # end if - Regular dice roll
-
-
 # end def
 
 client.run(BOT_TOKEN)
