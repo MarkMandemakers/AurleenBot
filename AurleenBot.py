@@ -9,6 +9,7 @@ import os
 import sys
 import math
 # import git
+import asyncio
 
 # DEBUG
 print("Starting up...") # STarting
@@ -146,7 +147,7 @@ def update_discord():
 # Update lifetime stats file
 def update_lifetime_stats():
     global lifetime_stats
-    print(lifetime_stats)
+    # print(lifetime_stats)
     try:
         with open(swd+"lifetime_stats.json", 'w') as fp:
             json.dump(lifetime_stats, fp, indent=2)
@@ -727,14 +728,15 @@ async def on_message(message):
         # end if - unwatch channel
 
     elif msg.startswith(("quit", "stop", "exit", "reset", "watch", "unwatch", "admin")):
-        await message.channel.send(f"{str(message.author.mention)} Sorry, but you are not an admin...")
+        # await message.channel.send(f"{str(message.author.mention)} Sorry, but you are not an admin...")
+        await message.reply(f"Sorry, but you are not an admin...")
     # end if - ADMIN COMMANDS
 
     ###########################################################################################################
     # BOT INFORMATION
     ###########################################################################################################
     if msg.startswith(("help", "aurleen")):
-        async with message.channel.typing():
+        with message.channel.typing():
             embed = discord.Embed(title="AurleenBot Sample Commands", color=0x76883c)
             embed.add_field(name=f"{PREFIX}r1d20", value="Roll a d20", inline=False)
             embed.add_field(name=f"{PREFIX}r5d6", value=f"Roll five d6 and sum up\n(__Note__ Up to {total_dice_limit} dice can be rolled at once)", inline=False)
@@ -797,14 +799,15 @@ async def on_message(message):
         # Not supported in DM's
         if message.guild == None:
             print("[" + str(message.author) + "] Stats not supported in DM's")
-            await message.channel.send(str(message.author.mention) +
-                                    " Statistics are not supported via DM's...")
+            # await message.channel.send(str(message.author.mention) +
+                                    # " Statistics are not supported via DM's...")
+            await message.reply("Statistics are not supported via DM's...")
             return
         # end if
         bot_total = False
 
         # Set bot at typing in Discord while handling message
-        async with message.channel.typing():
+        with message.channel.typing():
             # Set target based on mentions
             if len(message.mentions) < 1:
                 target = "Total"
@@ -828,8 +831,9 @@ async def on_message(message):
                 # Verify if the guild has any rolls
                 if not bot_total and str(message.guild.id) not in session_stats:
                     print("[" + str(message.author) + "] No stats yet")
-                    await message.channel.send(str(message.author.mention) +
-                                            " There are no statistics about d20 rolls to show yet...")
+                    # await message.channel.send(str(message.author.mention) +
+                                            # " There are no statistics about d20 rolls to show yet...")
+                    await message.reply("There are no statistics about d20 rolls to show yet...")
                     return
                 # end if
 
@@ -838,16 +842,18 @@ async def on_message(message):
                     # Check if there have been any rolls in total
                     if not bot_total and target == 'Total' and sum(session_stats[str(message.guild.id)]['Total']['Rolls']) <= 0:
                         print("[" + str(message.author) + "] No stats yet")
-                        await message.channel.send(str(message.author.mention) +
-                                                " There are no statistics about d20 rolls to show yet...")
+                        # await message.channel.send(str(message.author.mention) +
+                        #                         " There are no statistics about d20 rolls to show yet...")
+                        await message.reply("There are no statistics about d20 rolls to show yet...")
                         return
                     # end if
 
                     # Check if the target (not total) has done any rolls
                     if not bot_total and target != "Total" and (str(target.id)) in session_stats[str(message.guild.id)] and sum(session_stats[str(message.guild.id)][str(target.id)]["Rolls"]) <= 0:
                         print("[" + str(message.author) + "] No stats yet")
-                        await message.channel.send(str(message.author.mention) +
-                                                " There are no statistics about d20 rolls to show yet...")
+                        # await message.channel.send(str(message.author.mention) +
+                        #                         " There are no statistics about d20 rolls to show yet...")
+                        await message.reply("There are no statistics about d20 rolls to show yet...")
                         return
                     # end if
                     print("[" + str(message.author) + "] Displaying stats")
@@ -884,16 +890,18 @@ async def on_message(message):
                     await message.channel.send(file=discord.File('stats.png'))
                 else:
                     print("[" + str(message.author) + "] No stats yet")
-                    await message.channel.send(str(message.author.mention) +
-                                            " There are no statistics about d20 rolls to show yet...")
+                    # await message.channel.send(str(message.author.mention) +
+                    #                         " There are no statistics about d20 rolls to show yet...")
+                    await message.reply("There are no statistics about d20 rolls to show yet...")
                 # end if/else
             elif "life" in msg or "lt" not in message:
             # Lifetime rolls
                 # Verify if the guild has any rolls
                 if not bot_total and str(message.guild.id) not in lifetime_stats:
                     print("[" + str(message.author) + "] No stats yet")
-                    await message.channel.send(str(message.author.mention) +
-                                            " There are no statistics about d20 rolls to show yet...")
+                    # await message.channel.send(str(message.author.mention) +
+                    #                         " There are no statistics about d20 rolls to show yet...")
+                    await message.reply("There are no statistics about d20 rolls to show yet...")
                     return
                 # end if
 
@@ -902,16 +910,18 @@ async def on_message(message):
                     # Check if there have been any rolls in total
                     if not bot_total and target == 'Total' and sum(lifetime_stats[str(message.guild.id)]['Total']['Rolls']) <= 0:
                         print("[" + str(message.author) + "] No stats yet")
-                        await message.channel.send(str(message.author.mention) +
-                                                " There are no statistics about d20 rolls to show yet...")
+                        # await message.channel.send(str(message.author.mention) +
+                        #                         " There are no statistics about d20 rolls to show yet...")
+                        await message.reply("There are no statistics about d20 rolls to show yet...")
                         return
                     # end if
 
                     # Check if the target (not total) has done any rolls
                     if not bot_total and target != "Total" and (str(target.id)) in lifetime_stats[str(message.guild.id)] and sum(lifetime_stats[str(message.guild.id)][str(target.id)]["Rolls"]) <= 0:
                         print("[" + str(message.author) + "] No stats yet")
-                        await message.channel.send(str(message.author.mention) +
-                                                " There are no statistics about d20 rolls to show yet...")
+                        # await message.channel.send(str(message.author.mention) +
+                        #                         " There are no statistics about d20 rolls to show yet...")
+                        await message.reply("There are no statistics about d20 rolls to show yet...")
                         return
                     # end if
                     print("[" + str(message.author) + "] Displaying lifetime stats")
@@ -949,8 +959,9 @@ async def on_message(message):
                     await message.channel.send(file=discord.File('stats.png'))
                 else:
                     print("[" + str(message.author) + "] No lifetime stats yet")
-                    await message.channel.send(str(message.author.mention) +
-                                            " There are no lifetime statistics about d20 rolls to show yet...")
+                    # await message.channel.send(str(message.author.mention) +
+                    #                         " There are no lifetime statistics about d20 rolls to show yet...")
+                    await message.reply("There are no lifetime statistics about d20 rolls to show yet...")
                 # end if/else
             # end if
         # end with - typing
@@ -965,8 +976,9 @@ async def on_message(message):
         if prev_call == "":
             # Throw error since there is nothing to re-roll
             print("[" + str(message.content) + "; " + str(message.author) + "] Nothing to re-roll")
-            await message.channel.send(str(message.author.mention) +
-                                       " There is nothing to re-roll...")
+            # await message.channel.send(str(message.author.mention) +
+            #                            " There is nothing to re-roll...")
+            await message.reply("There is nothing to re-roll...")
             # Do not proceed with message processing
             return
         else:
@@ -982,13 +994,40 @@ async def on_message(message):
     ###########################################################################################################
     dm_roll = False
     if msg.startswith(("dm", "h")) and (isinstance(message.channel, discord.channel.DMChannel) or message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
+        # Find mentions to send result to
+        dm_target = set([message.author])
+        if len(message.mentions):
+            for m in list(message.mentions):
+                if m.bot:
+                    # Send message with warning if author mentioned a bot
+                    print(f"[{message.content}; {message.author}] Cannot send result to a bot")
+                    # await message.channel.send(f"{message.author.mention} Heads up, I cannot send the results to a bot...")
+                    await message.reply(f"Heads up, I cannot send the results to a bot...")
+
+                    # if warning != "":
+                    #     warning += "\nCannot send result to a bot"
+                    # else:
+                    #     warning = "Cannot send result to a bot"
+                    # # end if
+                else:
+                    dm_target.add(m)
+                # end if
+            # end for
+        # end if
+        
+        # Remove mentions from message for later handling
+        msg = re.sub('<@(\d+)>', '', msg)
+        # print(dm_target)
+        # print(msg)
+
         # Replace whole command up until first integer (expected: dice count) or +/- with "regular roll"
         cmd_split_index = re.search('[\+\-\d]', msg)
 
         # Throw error if there are no dice to roll
         if cmd_split_index == None:
             print(f"[{message.content}; {message.author}] Nothing to re-roll")
-            await message.channel.send(f"{message.author.mention} You should add something to roll...")
+            # await message.channel.send(f"{message.author.mention} You should add something to roll...")
+            await message.reply(f"You should add something to roll...")
             return
         # end if
 
@@ -1032,7 +1071,7 @@ async def on_message(message):
     ###########################################################################################################    
     if msg.startswith(("adv", "dis")) and (isinstance(message.channel, discord.channel.DMChannel) or message.channel.id in discord_data[str(message.guild.id)]['channels'] or len(discord_data[str(message.guild.id)]['channels']) == 0):
         # Set bot as typing in Discord while handling message
-        async with message.channel.typing():
+        with message.channel.typing():
             prev_call = msg
             # Find additional modifier (dice or not)
             modifier_dice = re.findall('[\+\-]r*\d*d\d+', msg)
@@ -1076,15 +1115,17 @@ async def on_message(message):
             # Check if dice limit is reached or no dice are left after unifying
             if total_dice_count == 0:
                 print("[" + str(message.content) + "; " + str(message.author) + "] No dice left after unifying")
-                await message.channel.send(str(message.author.mention) +
-                                        " This doesn\'t add up with the number of dice you want to roll.\n"
-                                        f"Please use **{PREFIX}help** to see what formats are supported.")
+                # await message.channel.send(str(message.author.mention) +
+                #                         " This doesn\'t add up with the number of dice you want to roll.\n"
+                #                         f"Please use **{PREFIX}help** to see what formats are supported.")
+                await message.reply(f"This doesn\'t add up with the number of dice you want to roll.\nPlease use **{PREFIX}help** to see what formats are supported.")
                 # Do not proceed with message processing
                 return
             elif total_dice_count > total_dice_limit:
                 # Throw error
                 print("[" + str(message.content) + "; " + str(message.author) + "] Too many dice to roll, throwing error")
-                await message.channel.send(f"{message.author.mention} Sorry, I cannot roll that many dice at once.\nPlease try to roll {total_dice_limit} dice or less.")
+                # await message.channel.send(f"{message.author.mention} Sorry, I cannot roll that many dice at once.\nPlease try to roll {total_dice_limit} dice or less.")
+                await message.reply(f"Sorry, I cannot roll that many dice at once.\nPlease try to roll {total_dice_limit} dice or less.")
                 # Do not proceed with message processing
                 return
             # end if/elif
@@ -1412,7 +1453,9 @@ async def on_message(message):
         # If this is a new "group" of rolls, send dividing line (-1 means first roll of session)
         # print(time.time() - prev_time)
         if not dm_roll and prev_time != -1 and time.time() - prev_time >= divider_line_timediff:
-            await message.channel.send("──────────────────────────────────")
+            # await message.channel.send("──────────────────────────────────")
+            # await message.reply("──────────────────────────────────", mention_author=False)
+            warning = "──────────────────────────────────\n" + warning
         # end if
         
         # Send message to Discord or DM and update status
@@ -1421,37 +1464,46 @@ async def on_message(message):
                 # Adjust title to see it in notification
                 embed.title = f"Rolling {desc}: {total_result}"
                 embed.description = f"1 / {nr_of_embeds} - {message.author.display_name}"
-                # Send DM
-                await message.author.send(warning, embed=embed)
 
-                # Send other embeds
-                for i in range(len(added_embeds)):
-                    added_embeds[i].title = f"Rolling {desc}: {total_result}"
-                    added_embeds[i].description = f"{i+2} / {nr_of_embeds} - {message.author.display_name}"
-                    await message.author.send(embed=added_embeds[i])
+                # Send DM to all targets
+                for msg_target in dm_target:
+                    await msg_target.send(warning, embed=embed)
+
+                    # Send other embeds
+                    for i in range(len(added_embeds)):
+                        added_embeds[i].title = f"Rolling {desc}: {total_result}"
+                        added_embeds[i].description = f"{i+2} / {nr_of_embeds} - {message.author.display_name}"
+                        await msg_target.send(embed=added_embeds[i])
+                    # end for
                 # end for
 
                 await message.add_reaction("🎲")
             else:
                 # Send to server
-                await message.channel.send(warning, embed=embed)
+                # await message.channel.send(warning, embed=embed)
+                await message.channel.send(warning, embed=embed, mention_author=False)
 
                 # Send other embeds
                 for e in added_embeds:
-                    await message.channel.send(embed=e)
+                    # await message.channel.send(embed=e)
+                    await message.channel.send(embed=e, mention_author=False)
                 # end for
             # end if
         else:
             if dm_roll:
                 # Adjust title to see it in notification
                 embed.title = f"Rolling {desc}: {total_result}"
-                embed.description = f"{message.author.display_name}"
-                # Send DM
-                await message.author.send(warning, embed=embed)
+                embed.description = f"{message.author.display_name}" 
+                
+                # Send DM to all targets
+                for msg_target in dm_target:
+                    await msg_target.send(warning, embed=embed)
+                # end for
                 await message.add_reaction("🎲")
             else:
                 # Send to server
-                await message.channel.send(warning, embed=embed)
+                # await message.channel.send(warning, embed=embed)
+                await message.reply(warning, embed=embed, mention_author=False)
             # end if
         # end if
         # await client.change_presence(activity=discord.Game(name="Rolled " + str(rolled) + " dice"))
@@ -1582,7 +1634,7 @@ async def on_message(message):
         # \-\d+[^d]         negative modifier (no dice)
 
         # Set bot as typing on Discord while handling message
-        async with message.channel.typing():
+        with message.channel.typing():
             base_dice = re.findall(f'r(\d+d\d+)', msg)
             modifier_dice = re.findall('[\+\-]r*\d*d\d+', msg)
             modifier = re.findall('[\+\-]\d+(?![d\d])', msg)
@@ -1593,8 +1645,8 @@ async def on_message(message):
             if len(base_dice) != 1 or int(base_dice[0].split("d")[1]) <= 0:
                 # No base dice found (or too many), return error message
                 print("[" + str(message.content) + "; " + str(message.author) + "] Not correct number of base dice")
-                await message.channel.send(str(message.author.mention) + " Something seems to be off with that command.\n"
-                                                                        f"Please use **{PREFIX}help** to see what formats are supported.")
+                # await message.channel.send(str(message.author.mention) + " Something seems to be off with that command.\nPlease use **{PREFIX}help** to see what formats are supported.")
+                await message.reply(f"Something seems to be off with that command.\nPlease use **{PREFIX}help** to see what formats are supported.")
                 # Do not proceed with message processing
                 return
             # end if
@@ -1648,15 +1700,17 @@ async def on_message(message):
             # Check if dice limit is reached or no dice are left after unifying
             if total_dice_count == 0:
                 print("[" + str(message.content) + "; " + str(message.author) + "] No dice left after unifying")
-                await message.channel.send(str(message.author.mention) +
-                                        " This doesn\'t add up with the number of dice you want to roll.\n"
-                                        f"Please use **{PREFIX}help** to see what formats are supported.")
+                # await message.channel.send(str(message.author.mention) +
+                #                         " This doesn\'t add up with the number of dice you want to roll.\n"
+                #                         f"Please use **{PREFIX}help** to see what formats are supported.")
+                await message.reply(f"This doesn\'t add up with the number of dice you want to roll.\nPlease use **{PREFIX}help** to see what formats are supported.")
                 # Do not proceed with message processing
                 return
             elif total_dice_count > total_dice_limit:
                 # Throw error
                 print("[" + str(message.content) + "; " + str(message.author) + "] Too many dice to roll, throwing error")
-                await message.channel.send(f"{message.author.mention} Sorry, I cannot roll that many dice at once.\nPlease try to roll {total_dice_limit} dice or less.")
+                # await message.channel.send(f"{message.author.mention} Sorry, I cannot roll that many dice at once.\nPlease try to roll {total_dice_limit} dice or less.")
+                await message.reply(f"Sorry, I cannot roll that many dice at once.\nPlease try to roll {total_dice_limit} dice or less.")
                 # Do not proceed with message processing
                 return
             # end if/elif
@@ -1957,7 +2011,9 @@ async def on_message(message):
         # If this is a new "group" of rolls, send dividing line (-1 means first roll of session)
         # print(time.time() - prev_time)
         if not dm_roll and prev_time != -1 and time.time() - prev_time >= divider_line_timediff:
-            await message.channel.send("──────────────────────────────────")
+            # await message.channel.send("──────────────────────────────────")
+            # await message.reply("──────────────────────────────────", mention_author=False)
+            warning = "──────────────────────────────────\n" + warning
         # end if
 
         # Send message to Discord or DM and update status
@@ -1966,24 +2022,29 @@ async def on_message(message):
                 # Adjust title to see it in notification
                 embed.title = f"Rolling {desc}: {total_result}"
                 embed.description = f"1 / {nr_of_embeds} - {message.author.display_name}"
-                # Send DM
-                await message.author.send(warning, embed=embed)
+                
+                # Send DM to all targets
+                for msg_target in dm_target:
+                    await msg_target.send(warning, embed=embed)
 
-                # Send other embeds
-                for i in range(len(added_embeds)):
-                    added_embeds[i].title = f"Rolling {desc}: {total_result}"
-                    added_embeds[i].description = f"{i+2} / {nr_of_embeds} - {message.author.display_name}"
-                    await message.author.send(embed=added_embeds[i])
+                    # Send other embeds
+                    for i in range(len(added_embeds)):
+                        added_embeds[i].title = f"Rolling {desc}: {total_result}"
+                        added_embeds[i].description = f"{i+2} / {nr_of_embeds} - {message.author.display_name}"
+                        await msg_target.send(embed=added_embeds[i])
+                    # end for
                 # end for
 
                 await message.add_reaction("🎲")
             else:
                 # Send to server
-                await message.channel.send(warning, embed=embed)
+                # await message.channel.send(warning, embed=embed)
+                await message.reply(warning, embed=embed, mention_author=False)
 
                 # Send other embeds
                 for e in added_embeds:
-                    await message.channel.send(embed=e)
+                    # await message.channel.send(embed=e)
+                    await message.reply(embed=e, mention_author=False)
                 # end for
             # end if
         else:
@@ -1991,12 +2052,16 @@ async def on_message(message):
                 # Adjust title to see it in notification
                 embed.title = f"Rolling {desc}: {total_result}"
                 embed.description = f"{message.author.display_name}"
-                # Send DM
-                await message.author.send(warning, embed=embed)
+                
+                # Send DM to all targets
+                for msg_target in dm_target:
+                    await msg_target.send(warning, embed=embed)
+                # end for
                 await message.add_reaction("🎲")
             else:
                 # Send to server
-                await message.channel.send(warning, embed=embed)
+                # await message.channel.send(warning, embed=embed)
+                await message.reply(warning, embed=embed, mention_author=False)
             # end if
         # end if
         # await client.change_presence(activity=discord.Game(name="Rolled " + str(rolled) + " dice"))
